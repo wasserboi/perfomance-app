@@ -157,12 +157,12 @@ function vLog(){
     <button class="btn wide ${S.plans.length?'':'primary'}" data-a="start">Freies Training</button>
   </div>
   <h2>Verlauf</h2>
-  ${recent.length?recent.map(w=>`<div class="card row between" data-a="showw" data-id="${w.id}"><div><div style="font-weight:600">${esc(w.name)}</div><div class="tiny">${fmtDL(w.date)} · ${w.exercises.length} Übungen · ${Math.round(w.duration/60)} min</div></div><div class="num muted">${vol(w).toLocaleString('de-DE')} kg</div></div>`).join(''):`<div class="empty">Noch kein Training gespeichert.</div>`}`;
+  ${recent.length?recent.map(w=>`<div class="card row between" data-a="showw" data-id="${w.id}"><div><div style="font-weight:600">${esc(w.name)}</div><div class="tiny">${fmtDL(w.date)} · ${w.exercises.length} Übungen · ${Math.round(w.duration/60)} min</div></div><div class="num" style="text-align:right">${(()=>{const h=planWorkouts(w.planId,w.name),i=h.findIndex(x=>x.id===w.id),c=i>0?compare(w,h[i-1]):null;return c?`<div style="font-weight:600;color:${pctC(c.pct)}">${pctS(c.pct)}</div>`:''})()}<div class="muted">${vol(w).toLocaleString('de-DE')} kg</div></div></div>`).join(''):`<div class="empty">Noch kein Training gespeichert.</div>`}`;
 }
 function vol(w){return w.exercises.reduce((a,e)=>a+e.sets.filter(s=>s.done).reduce((b,s)=>b+s.w*s.r,0),0)}
 function vActive(){
   const a=S.active,min=Math.round((Date.now()-a.start)/60000);
-  return `<div class="row between" style="margin-top:6px"><h1 style="margin:0">${esc(a.name)}<small>${min} min · ${vol(a).toLocaleString('de-DE')} kg bewegt</small></h1><button class="btn ghost danger small" data-a="cancel">Abbrechen</button></div>
+  return `<div class="row between" style="margin-top:6px"><h1 style="margin:0">${esc(a.name)}<small>${min} min · ${vol(a).toLocaleString('de-DE')} kg bewegt${a.basedOn?' · Basis: letztes Training':''}</small></h1><button class="btn ghost danger small" data-a="cancel">Abbrechen</button></div>
   ${a.exercises.map((ex,ei)=>{const prev=lastSets(ex.name);return `<div class="card ex">
     <div class="row between"><div class="grow"><div class="name">${esc(ex.name)}</div><div class="prev">${prev?'Letztes Mal: '+prev.map(s=>s.w+'×'+s.r).join(', '):'Erstes Mal'}</div></div><button class="btn ghost small" data-a="rmex" data-i="${ei}">✕</button></div>
     <div class="sets"><div class="h">Satz</div><div class="h">kg</div><div class="h">Reps</div><div class="h"></div>
@@ -173,17 +173,50 @@ function vActive(){
   <button class="btn wide" data-a="addex" style="margin-bottom:10px">+ Übung hinzufügen</button>
   <button class="btn wide primary" data-a="finish">Training beenden</button>`;
 }
+function planWorkouts(planId,name){return S.workouts.filter(w=>planId?w.planId===planId:w.name===name)}
 function startWorkout(planId){
   const p=S.plans.find(x=>x.id===planId);
-  S.active={id:uid(),name:p?p.name:'Freies Training',planId:planId||null,start:Date.now(),
-    exercises:p?p.exercises.map(e=>({name:e.name,targetReps:e.reps,sets:Array.from({length:e.sets||3},()=>({w:0,r:0,done:false}))})):[]};
+  let exercises=[];
+  if(p){
+    const last=planWorkouts(p.id,p.name).slice(-1)[0];
+    if(last)exercises=last.exercises.map(e=>({name:e.name,sets:e.sets.map(s=>({w:s.w,r:s.r,done:false}))}));
+    p.exercises.forEach(e=>{if(!exercises.some(x=>x.name===e.name))exercises.push({name:e.name,targetReps:e.reps,sets:Array.from({length:e.sets||3},()=>({w:0,r:0,done:false}))})});
+  }
+  S.active={id:uid(),name:p?p.name:'Freies Training',planId:planId||null,start:Date.now(),basedOn:!!(p&&exercises.length&&exercises[0].sets[0].w),exercises};
   save();render();
 }
 function finishWorkout(){
   const a=S.active;a.exercises=a.exercises.map(e=>({name:e.name,sets:e.sets.filter(s=>s.done)})).filter(e=>e.sets.length);
   if(!a.exercises.length){toast('Keine Sätze abgehakt');return}
-  S.workouts.push({id:a.id,name:a.name,date:new Date().toISOString(),duration:(Date.now()-a.start)/1000,exercises:a.exercises});
-  S.active=null;stopTimer();save();toast('Training gespeichert');render();
+  const w={id:a.id,name:a.name,planId:a.planId,date:new Date().toISOString(),duration:(Date.now()-a.start)/1000,exercises:a.exercises};
+  S.workouts.push(w);S.active=null;stopTimer();save();render();summarySheet(w.id);
+}
+/* Kraft-Score: Summe der besten geschätzten 1RM pro Übung */
+function bestRm(e){return e.sets.reduce((a,s)=>Math.max(a,e1rm(s.w,s.r)),0)}
+function compare(w,ref){
+  if(!ref)return null;
+  const common=w.exercises.filter(e=>ref.exercises.some(x=>x.name===e.name));
+  if(!common.length)return null;
+  const cur=common.reduce((a,e)=>a+bestRm(e),0),old=common.reduce((a,e)=>a+bestRm(ref.exercises.find(x=>x.name===e.name)),0);
+  const cv=common.reduce((a,e)=>a+e.sets.reduce((b,s)=>b+s.w*s.r,0),0),ov=common.reduce((a,e)=>a+ref.exercises.find(x=>x.name===e.name).sets.reduce((b,s)=>b+s.w*s.r,0),0);
+  return{pct:old?(cur/old-1)*100:0,vol:ov?(cv/ov-1)*100:0,date:ref.date,n:common.length,
+    per:common.map(e=>{const o=bestRm(ref.exercises.find(x=>x.name===e.name)),c=bestRm(e);return{name:e.name,pct:o?(c/o-1)*100:0}})};
+}
+const pctS=v=>(v>=0?'+':'')+v.toFixed(1).replace('.',',')+' %';
+const pctC=v=>v>0.05?'var(--good)':v<-0.05?'#ef6b6b':'var(--ink2)';
+function summarySheet(id){
+  const w=S.workouts.find(x=>x.id===id),hist=planWorkouts(w.planId,w.name),idx=hist.findIndex(x=>x.id===id);
+  const prev=idx>0?hist[idx-1]:null,first=idx>0?hist[0]:null;
+  const cl=compare(w,prev),cf=idx>1?compare(w,first):null;
+  const box=(l,c)=>c?`<div class="card" style="background:var(--bg3)"><div class="tiny">${l} · ${fmtD(c.date)}</div><div class="num" style="font-size:30px;font-weight:700;letter-spacing:-.02em;color:${pctC(c.pct)}">${pctS(c.pct)}</div><div class="tiny">Volumen ${pctS(c.vol)}</div></div>`:'';
+  sheet(`<h3>${esc(w.name)} gespeichert</h3>
+  <div class="tiny" style="margin-bottom:12px">${fmtDL(w.date)} · ${Math.round(w.duration/60)} min · ${vol(w).toLocaleString('de-DE')} kg bewegt</div>
+  ${cl||cf?`<div class="grid2">${box('vs. letztes Mal',cl)}${box('seit Aufzeichnung',cf)}</div>
+  <div class="tiny" style="margin:2px 0 12px">Kraft-Score = Summe der geschätzten 1RM aller Übungen, die in beiden Trainings vorkamen.</div>`:`<div class="muted" style="margin-bottom:12px">Erstes Training mit diesem Plan – ab dem nächsten Mal siehst du hier den Vergleich.</div>`}
+  <div class="card list">${w.exercises.map(x=>{const d=cl?.per.find(p=>p.name===x.name);return`<div class="item"><div class="grow"><div style="font-weight:600">${esc(x.name)}</div><div class="tiny num">${x.sets.map(s=>s.w+'×'+s.r).join(' · ')}</div></div>${d?`<span class="num" style="font-weight:600;color:${pctC(d.pct)}">${pctS(d.pct)}</span>`:'<span class="tiny">neu</span>'}</div>`}).join('')}</div>
+  <button class="btn primary wide" data-pa="close" style="margin-top:8px">Fertig</button>
+  <button class="btn ghost danger wide" data-pa="del" style="margin-top:6px">Training löschen</button>`);
+  document.querySelector('#sheet .in').onclick=ev=>{const a=ev.target.closest('[data-pa]')?.dataset.pa;if(a==='close')closeSheet();if(a==='del'&&confirm('Löschen?')){S.workouts=S.workouts.filter(x=>x.id!==id);save();closeSheet();render()}};
 }
 
 /* ---------- Timer ---------- */
@@ -325,8 +358,7 @@ app.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)retu
   if(a==='rmset'){S.active.exercises[d.i].sets.pop();save();render()}
   if(a==='rmex'){S.active.exercises.splice(+d.i,1);save();render()}
   if(a==='addex')prompt2('Übung',n=>{S.active.exercises.push({name:n,sets:[{w:0,r:0,done:false},{w:0,r:0,done:false},{w:0,r:0,done:false}]});save();render()},'z. B. Bankdrücken');
-  if(a==='showw'){const w=S.workouts.find(x=>x.id===d.id);sheet(`<h3>${esc(w.name)}</h3><div class="tiny" style="margin-bottom:12px">${fmtDL(w.date)} · ${Math.round(w.duration/60)} min · ${vol(w).toLocaleString('de-DE')} kg</div>${w.exercises.map(x=>`<div style="margin-bottom:10px"><div style="font-weight:600">${esc(x.name)}</div><div class="muted num">${x.sets.map(s=>s.w+'×'+s.r).join('  ·  ')}</div></div>`).join('')}<button class="btn ghost danger wide" data-pa="del" style="margin-top:8px">Training löschen</button>`);
-    document.querySelector('#sheet .in').onclick=ev=>{if(ev.target.closest('[data-pa=del]')&&confirm('Löschen?')){S.workouts=S.workouts.filter(x=>x.id!==d.id);save();closeSheet();render()}}}
+  if(a==='showw')summarySheet(d.id);
   if(a==='editplan')planSheet(d.id);
   if(a==='pex'){progEx=d.n;render()}
   if(a==='savew'){const v=+document.getElementById('wIn').value;if(!v)return;S.weights=S.weights.filter(x=>x.d!==today());S.weights.push({d:today(),w:v});save();toast('Gespeichert');render()}
