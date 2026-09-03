@@ -26,6 +26,6 @@ Wenn du die Safari-Website-Daten löschst oder die App vom Home-Bildschirm entfe
 
 ## Cloud-Backup
 
-Die App sichert automatisch nach jeder Änderung eine `data.json` in ein privates GitHub-Repo (Standard: `wasserboi/perf-data`).
+Die App sichert automatisch nach jeder Änderung `data.json` (aktuelle Daten) und `history.json` (Trainings älter als 90 Tage) per Git-Data-API in ein privates GitHub-Repo (Standard: `wasserboi/perf-data`).
 Einrichten: Pläne → Cloud-Backup → Token eintragen → Verbinden. Der Token liegt nur im Gerät, nicht im Code.
 Jeder Stand ist in der Commit-Historie des Daten-Repos abrufbar.
