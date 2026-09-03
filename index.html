@@ -153,7 +153,8 @@ if(location.search)history.replaceState(null,'',location.pathname);
 /* ---------- State ---------- */
 const KEY='perf.v1';
 const clone=o=>JSON.parse(JSON.stringify(o));
-const APP_VERSION='9';
+const APP_VERSION='10';
+const MEAS=[['waist','Bauch'],['chest','Brust'],['armL','Arm links'],['armR','Arm rechts'],['thighL','Bein links'],['thighR','Bein rechts']];
 const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];const TYPES=['Freihand','Maschine','Kabelturm'];
 const stageLabel=st=>STAGES[st].sets+'×'+STAGES[st].reps;
 const def={plans:[],workouts:[],weights:[],macros:{},foods:[],meals:[],measures:[],exNotes:{},dayType:{},goals:{p:180,c:250,f:80},goalsRest:null,settings:{rest:90,overload:2.5},active:null};
@@ -446,8 +447,8 @@ function vBody(){
   <h2>Maße</h2>
   <div class="card">
     ${(()=>{const m=[...S.measures].sort((a,b)=>a.d<b.d?-1:1),l=m[m.length-1],t=m.find(x=>x.d===today())||{};const f=(k,lab)=>`<div><label class="f">${lab}</label><input type="number" inputmode="decimal" step="0.5" id="ms_${k}" value="${t[k]??''}" placeholder="${l?.[k]??'cm'}"></div>`;
-      return `<div class="grid4">${f('waist','Bauch')}${f('chest','Brust')}${f('arm','Arm')}${f('thigh','Bein')}</div><button class="btn primary wide" data-a="savem" style="margin-top:10px">Maße speichern</button>
-      ${m.length?`<div class="list" style="margin-top:8px">${m.slice(-5).reverse().map(x=>`<div class="item"><span class="muted">${fmtD(x.d)}</span><span class="num tiny">${['waist','chest','arm','thigh'].filter(k=>x[k]).map(k=>({waist:'B',chest:'Br',arm:'A',thigh:'Be'})[k]+' '+x[k]).join(' · ')}</span></div>`).join('')}</div>`:'<div class="tiny" style="margin-top:8px">Alle 2–4 Wochen messen reicht.</div>'}`})()}
+      return `<div class="grid2">${f('waist','Bauch')}${f('chest','Brust')}</div><div class="grid2" style="margin-top:8px">${f('armL','Arm links')}${f('armR','Arm rechts')}</div><div class="grid2" style="margin-top:8px">${f('thighL','Bein links')}${f('thighR','Bein rechts')}</div><button class="btn primary wide" data-a="savem" style="margin-top:10px">Maße speichern</button>
+      ${m.length?`<div class="list" style="margin-top:8px">${m.slice(-5).reverse().map(x=>`<div class="item" style="align-items:flex-start"><span class="muted" style="min-width:52px">${fmtD(x.d)}</span><span class="num tiny" style="text-align:right">${[['Bauch',x.waist],['Brust',x.chest],['Arm',x.armL||x.arm,x.armR],['Bein',x.thighL||x.thigh,x.thighR]].filter(a=>a[1]||a[2]).map(a=>a.length>2&&a[2]?`${a[0]} ${a[1]||'–'} / ${a[2]}`:`${a[0]} ${a[1]||a[2]}`).join(' · ')}</span></div>`).join('')}</div>`:'<div class="tiny" style="margin-top:8px">Alle 2–4 Wochen messen reicht.</div>'}`})()}
   </div>
   <h2>Pausen-Timer</h2>
   <div class="grid4">${[60,90,120,180].map(s=>`<button class="btn" data-a="timer" data-s="${s}">${s>=120?s/60+' min':s+' s'}</button>`).join('')}</div>
@@ -613,7 +614,7 @@ function appAction(b){const a=b.dataset.a,d=b.dataset;
   if(a==='editplan')planSheet(d.id);
   if(a==='pex'){progEx=d.n;render()}
   if(a==='savew'){const v=+document.getElementById('wIn').value;if(!v)return;S.weights=S.weights.filter(x=>x.d!==today());S.weights.push({d:today(),w:v});save();toast('Gespeichert');render()}
-  if(a==='savem'){const e={d:today()};['waist','chest','arm','thigh'].forEach(k=>{const v=+document.getElementById('ms_'+k).value;if(v)e[k]=v});if(Object.keys(e).length<2)return;S.measures=S.measures.filter(x=>x.d!==today());S.measures.push(e);save();toast('Gespeichert');render()}
+  if(a==='savem'){const e={d:today()};MEAS.map(x=>x[0]).forEach(k=>{const v=+document.getElementById('ms_'+k).value;if(v)e[k]=v});if(Object.keys(e).length<2)return;S.measures=S.measures.filter(x=>x.d!==today());S.measures.push(e);save();toast('Gespeichert');render()}
   if(a==='rmw'){S.weights=S.weights.filter(x=>x.d!==d.d);save();render()}
   if(a==='timer')startTimer(+d.s);
   if(a==='mday'){const dt=new Date(macroDay+'T12:00');dt.setDate(dt.getDate()+ +d.o);macroDay=dt.toISOString().slice(0,10);render()}
@@ -650,7 +651,7 @@ document.getElementById('upd').onclick=async()=>{try{if(navigator.serviceWorker)
 function changelogSheet(){const info=latestInfo&&latestInfo.version===APP_VERSION?latestInfo:null;
   sheet(`<h3>Was ist neu</h3>${(info?info.changes:CHANGES).map(c=>`<div class="item"><span class="tiny" style="min-width:36px">v${c.v}</span><span>${c.t.map(esc).join('<br>')}</span></div>`).join('')}<button class="btn wide" data-pa="close" style="margin-top:12px">OK</button>`);
   document.querySelector('#sheet .in').onclick=ev=>{if(ev.target.closest('[data-pa=close]'))closeSheet()}}
-const CHANGES=[{v:'9',t:['Aufgeräumt: Fortschritt mit Dropdown, kompaktere Übungsköpfe im Training, Makro-Buttons 2×2']},{v:'8',t:['PRs (Gewicht, 1RM, Volumen) in Auswertung und Verlauf, PR-Hinweis beim Abhaken','Insgesamt bewegte Tonnen']},{v:'7',t:['Einstellungen ins Zahnrad-Menü verschoben']},{v:'6',t:['Main-Übung mit 3-5-7-System (10×3 → 7×5 → 5×7 → +Schritt)','Übungen als Freihand / Maschine / Kabelturm markiert']},{v:'5',t:['Overload-Vorschlag beim Start (Ziel-Reps geschafft → +2,5 kg)','Wochenübersicht und "zuletzt vor X Tagen" pro Plan','Notizen pro Übung, Aufwärmsätze','Mahlzeiten mit einem Tipp buchen','Ziele für Trainings- und Ruhetag, 7-Tage-Schnitt mit Gewichtstrend','Körpermaße, geglätteter Gewichtstrend','Update-Hinweis, CSV-Export']},{v:'4',t:['Makros: Barcode-Scanner, Open Food Facts, Mengenrechner']},{v:'3',t:['Automatisches Cloud-Backup (GitHub)']},{v:'2',t:['Letztes Training als Vorlage, Kraftvergleich nach dem Training']},{v:'1',t:['Erste Version']}];
+const CHANGES=[{v:'10',t:['Maße: Arm und Bein links/rechts getrennt']},{v:'9',t:['Aufgeräumt: Fortschritt mit Dropdown, kompaktere Übungsköpfe im Training, Makro-Buttons 2×2']},{v:'8',t:['PRs (Gewicht, 1RM, Volumen) in Auswertung und Verlauf, PR-Hinweis beim Abhaken','Insgesamt bewegte Tonnen']},{v:'7',t:['Einstellungen ins Zahnrad-Menü verschoben']},{v:'6',t:['Main-Übung mit 3-5-7-System (10×3 → 7×5 → 5×7 → +Schritt)','Übungen als Freihand / Maschine / Kabelturm markiert']},{v:'5',t:['Overload-Vorschlag beim Start (Ziel-Reps geschafft → +2,5 kg)','Wochenübersicht und "zuletzt vor X Tagen" pro Plan','Notizen pro Übung, Aufwärmsätze','Mahlzeiten mit einem Tipp buchen','Ziele für Trainings- und Ruhetag, 7-Tage-Schnitt mit Gewichtstrend','Körpermaße, geglätteter Gewichtstrend','Update-Hinweis, CSV-Export']},{v:'4',t:['Makros: Barcode-Scanner, Open Food Facts, Mengenrechner']},{v:'3',t:['Automatisches Cloud-Backup (GitHub)']},{v:'2',t:['Letztes Training als Vorlage, Kraftvergleich nach dem Training']},{v:'1',t:['Erste Version']}];
 if(localStorage.getItem('perf.seen')!==APP_VERSION){localStorage.setItem('perf.seen',APP_VERSION);if(localStorage.getItem(KEY))setTimeout(changelogSheet,600)}
 render();pullSync();checkUpdate();
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
