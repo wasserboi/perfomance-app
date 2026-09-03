@@ -122,6 +122,11 @@ label.f{display:block;font-size:12px;color:var(--ink3);margin-bottom:4px}
 .week div{background:var(--bg2);border-radius:12px;padding:10px;text-align:center}
 .week b{display:block;font-size:22px;letter-spacing:-.02em}.week small{color:var(--ink3);font-size:12px}
 .stale{color:var(--warn)}
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;background:var(--bg3);color:var(--ink2);margin-right:4px;vertical-align:middle}
+.tag.main{background:var(--accent);color:#fff}
+.prow{background:var(--bg3);border-radius:12px;padding:10px;margin-bottom:8px}
+.prow select{padding:8px 10px}
+.stagebar{display:flex;gap:6px;margin-top:8px}.stagebar span{flex:1;text-align:center;font-size:12px;padding:6px 0;border-radius:8px;background:var(--bg3);color:var(--ink3)}.stagebar span.on{background:var(--accent);color:#fff;font-weight:600}.stagebar span.ok{color:var(--good)}
 </style>
 </head>
 <body>
@@ -143,7 +148,9 @@ if(location.search)history.replaceState(null,'',location.pathname);
 /* ---------- State ---------- */
 const KEY='perf.v1';
 const clone=o=>JSON.parse(JSON.stringify(o));
-const APP_VERSION='5';
+const APP_VERSION='6';
+const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];const TYPES=['Freihand','Maschine','Kabelturm'];
+const stageLabel=st=>STAGES[st].sets+'×'+STAGES[st].reps;
 const def={plans:[],workouts:[],weights:[],macros:{},foods:[],meals:[],measures:[],exNotes:{},dayType:{},goals:{p:180,c:250,f:80},goalsRest:null,settings:{rest:90,overload:2.5},active:null};
 let S=load();
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));return s?Object.assign({},def,s):clone(def)}catch(e){return clone(def)}}
@@ -237,7 +244,7 @@ function vActive(){
   const a=S.active,min=Math.round((Date.now()-a.start)/60000);
   return `<div class="row between" style="margin-top:6px"><h1 style="margin:0">${esc(a.name)}<small>${min} min · ${vol(a).toLocaleString('de-DE')} kg bewegt${a.basedOn?' · Basis: letztes Training':''}</small></h1><button class="btn ghost danger small" data-a="cancel">Abbrechen</button></div>
   ${a.exercises.map((ex,ei)=>{const prev=lastSets(ex.name);return `<div class="card ex">
-    <div class="row between"><div class="grow"><div class="name">${esc(ex.name)}${ex.sug?`<span class="sug">↑ +${String(ex.sug).replace(".",",")} kg</span>`:''}</div><div class="prev">${prev?'Letztes Mal: '+prev.map(s=>s.w+'×'+s.r).join(', '):'Erstes Mal'}${ex.targetReps?' · Ziel '+ex.targetReps+' Reps':''}</div>${S.exNotes[ex.name]?`<div class="note">${esc(S.exNotes[ex.name])}</div>`:''}</div><button class="btn ghost small" data-a="note" data-i="${ei}">Notiz</button><button class="btn ghost small" data-a="rmex" data-i="${ei}">✕</button></div>
+    <div class="row between"><div class="grow"><div class="name">${ex.main?'<span class="tag main">Main</span>':''}${ex.type?`<span class="tag">${ex.type}</span>`:''}${esc(ex.name)}${ex.sug?`<span class="sug">↑ +${String(ex.sug).replace(".",",")} kg</span>`:''}</div>${ex.main?`<div class="stagebar">${STAGES.map((c,i)=>`<span class="${i===ex.stage?'on':i<ex.stage?'ok':''}">${c.sets}×${c.reps}</span>`).join('')}</div><div class="prev">Ziel: ${STAGES[ex.stage].sets} Sätze × ${STAGES[ex.stage].reps} mit ${ex.sets.find(s=>!s.wu)?.w} kg</div>`:''}<div class="prev">${prev?'Letztes Mal: '+prev.map(s=>s.w+'×'+s.r).join(', '):'Erstes Mal'}${ex.targetReps?' · Ziel '+ex.targetReps+' Reps':''}</div>${S.exNotes[ex.name]?`<div class="note">${esc(S.exNotes[ex.name])}</div>`:''}</div><button class="btn ghost small" data-a="note" data-i="${ei}">Notiz</button><button class="btn ghost small" data-a="rmex" data-i="${ei}">✕</button></div>
     <div class="sets"><div class="h">Satz</div><div class="h">kg</div><div class="h">Reps</div><div class="h"></div>
     ${ex.sets.map((s,si)=>`<div class="n ${s.wu?'wu':''}" data-a="wu" data-i="${ei}" data-s="${si}">${s.wu?'W':si+1}</div><input type="number" inputmode="decimal" step="0.5" value="${s.w||''}" placeholder="${prev?.[si]?.w??''}" data-f="w" data-i="${ei}" data-s="${si}"><input type="number" inputmode="numeric" value="${s.r||''}" placeholder="${prev?.[si]?.r??ex.targetReps??''}" data-f="r" data-i="${ei}" data-s="${si}"><button class="ok ${s.done?'done':''}" data-a="done" data-i="${ei}" data-s="${si}"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></button>`).join('')}
     </div>
@@ -254,18 +261,25 @@ function startWorkout(planId){
   if(p){
     const last=planWorkouts(p.id,p.name).slice(-1)[0];
     const step=S.settings.overload||2.5;
-    if(last)exercises=last.exercises.map(e=>{const pe=p.exercises.find(x=>x.name===e.name),target=pe?.reps||e.targetReps||0;const ws=e.sets.filter(x=>!x.wu);
+    const mainEx=e=>{const st=e.state||{weight:e.weight,stage:0},cfg=STAGES[st.stage];return{name:e.name,type:e.type,main:true,stage:st.stage,targetReps:cfg.reps,sets:Array.from({length:cfg.sets},()=>({w:st.weight,r:cfg.reps,done:false}))}};
+    if(last)exercises=last.exercises.map(e=>{const pe=p.exercises.find(x=>x.name===e.name);if(pe?.main)return mainEx(pe);const target=pe?.reps||e.targetReps||0;const ws=e.sets.filter(x=>!x.wu);
       const hit=target&&ws.length&&ws.every(x=>x.r>=target)&&ws.some(x=>x.w>0);
-      return{name:e.name,targetReps:target||undefined,sug:hit?step:0,sets:e.sets.map(x=>({w:hit&&!x.wu?Math.round((x.w+step)*2)/2:x.w,r:x.r,done:false,wu:!!x.wu}))}});
-    p.exercises.forEach(e=>{if(!exercises.some(x=>x.name===e.name))exercises.push({name:e.name,targetReps:e.reps,sets:Array.from({length:e.sets||3},()=>({w:0,r:0,done:false}))})});
+      return{name:e.name,type:pe?.type||e.type,targetReps:target||undefined,sug:hit?step:0,sets:e.sets.map(x=>({w:hit&&!x.wu?Math.round((x.w+step)*2)/2:x.w,r:x.r,done:false,wu:!!x.wu}))}});
+    p.exercises.forEach(e=>{if(!exercises.some(x=>x.name===e.name))exercises.push(e.main?mainEx(e):{name:e.name,type:e.type,targetReps:e.reps,sets:Array.from({length:e.sets||3},()=>({w:0,r:0,done:false}))})});
+    const mi=exercises.findIndex(e=>e.main);if(mi>0){const [m]=exercises.splice(mi,1);exercises.unshift(m)}
   }
   S.active={id:uid(),name:p?p.name:'Freies Training',planId:planId||null,start:Date.now(),basedOn:!!(p&&exercises.length&&exercises[0].sets[0].w),exercises};
   save();render();
 }
 function finishWorkout(){
-  const a=S.active;a.exercises=a.exercises.map(e=>({name:e.name,targetReps:e.targetReps,sets:e.sets.filter(s=>s.done)})).filter(e=>e.sets.some(s=>!s.wu));
+  const a=S.active;a.exercises=a.exercises.map(e=>({name:e.name,type:e.type,main:e.main,stage:e.stage,targetReps:e.targetReps,sets:e.sets.filter(s=>s.done)})).filter(e=>e.sets.some(s=>!s.wu));
   if(!a.exercises.length){toast('Keine Sätze abgehakt');return}
-  const w={id:a.id,name:a.name,planId:a.planId,date:new Date().toISOString(),duration:(Date.now()-a.start)/1000,exercises:a.exercises};
+  let mainRes=null;const p=S.plans.find(x=>x.id===a.planId),me=a.exercises.find(e=>e.main),pe=p&&me&&p.exercises.find(x=>x.name===me.name&&x.main);
+  if(pe){const st=pe.state||{weight:pe.weight,stage:0},cfg=STAGES[st.stage],ws=me.sets.filter(x=>!x.wu);
+    const ok=ws.length>=cfg.sets&&ws.slice(0,cfg.sets).every(x=>x.r>=cfg.reps&&x.w>=st.weight);
+    const next=ok?(st.stage<2?{weight:st.weight,stage:st.stage+1}:{weight:st.weight+(pe.step||10),stage:0}):st;
+    mainRes={name:me.name,ok,from:st,to:next,done:ws.filter(x=>x.r>=cfg.reps&&x.w>=st.weight).length,need:cfg.sets};pe.state=next;}
+  const w={id:a.id,name:a.name,planId:a.planId,date:new Date().toISOString(),duration:(Date.now()-a.start)/1000,exercises:a.exercises,mainRes};
   S.workouts.push(w);S.active=null;stopTimer();save();render();summarySheet(w.id);
 }
 /* Kraft-Score: Summe der besten geschätzten 1RM pro Übung */
@@ -286,11 +300,13 @@ function summarySheet(id){
   const prev=idx>0?hist[idx-1]:null,first=idx>0?hist[0]:null;
   const cl=compare(w,prev),cf=idx>1?compare(w,first):null;
   const box=(l,c)=>c?`<div class="card" style="background:var(--bg3)"><div class="tiny">${l} · ${fmtD(c.date)}</div><div class="num" style="font-size:30px;font-weight:700;letter-spacing:-.02em;color:${pctC(c.pct)}">${pctS(c.pct)}</div><div class="tiny">Volumen ${pctS(c.vol)}</div></div>`:'';
+  const mr=w.mainRes,mainBox=mr?`<div class="card" style="background:var(--bg3);border-left:3px solid ${mr.ok?'var(--good)':'var(--warn)'}"><div class="tiny">Main · ${esc(mr.name)} · 3-5-7</div><div style="font-weight:600;margin-top:2px">${mr.ok?'Stufe geschafft':'Nicht geschafft'} – ${mr.done}/${mr.need} Sätze mit ${STAGES[mr.from.stage].reps} Reps @ ${mr.from.weight} kg</div><div class="muted" style="margin-top:2px">Nächstes Mal: ${stageLabel(mr.to.stage)} mit ${mr.to.weight} kg${mr.ok&&mr.to.stage===0?' – neues Ausgangsgewicht':mr.ok?'':' – wiederholen'}</div></div>`:'';
   sheet(`<h3>${esc(w.name)} gespeichert</h3>
   <div class="tiny" style="margin-bottom:12px">${fmtDL(w.date)} · ${Math.round(w.duration/60)} min · ${vol(w).toLocaleString('de-DE')} kg bewegt</div>
+  ${mainBox}
   ${cl||cf?`<div class="grid2">${box('vs. letztes Mal',cl)}${box('seit Aufzeichnung',cf)}</div>
   <div class="tiny" style="margin:2px 0 12px">Kraft-Score = Summe der geschätzten 1RM aller Übungen, die in beiden Trainings vorkamen.</div>`:`<div class="muted" style="margin-bottom:12px">Erstes Training mit diesem Plan – ab dem nächsten Mal siehst du hier den Vergleich.</div>`}
-  <div class="card list">${w.exercises.map(x=>{const d=cl?.per.find(p=>p.name===x.name);return`<div class="item"><div class="grow"><div style="font-weight:600">${esc(x.name)}</div><div class="tiny num">${x.sets.map(s=>(s.wu?'W ':'')+s.w+'×'+s.r).join(' · ')}</div></div>${d?`<span class="num" style="font-weight:600;color:${pctC(d.pct)}">${pctS(d.pct)}</span>`:'<span class="tiny">neu</span>'}</div>`}).join('')}</div>
+  <div class="card list">${w.exercises.map(x=>{const d=cl?.per.find(p=>p.name===x.name);return`<div class="item"><div class="grow"><div style="font-weight:600">${x.main?'<span class="tag main">Main</span>':''}${x.type?`<span class="tag">${x.type[0]}</span>`:''}${esc(x.name)}</div><div class="tiny num">${x.sets.map(s=>(s.wu?'W ':'')+s.w+'×'+s.r).join(' · ')}</div></div>${d?`<span class="num" style="font-weight:600;color:${pctC(d.pct)}">${pctS(d.pct)}</span>`:'<span class="tiny">neu</span>'}</div>`}).join('')}</div>
   <button class="btn primary wide" data-pa="close" style="margin-top:8px">Fertig</button>
   <button class="btn ghost danger wide" data-pa="del" style="margin-top:6px">Training löschen</button>`);
   document.querySelector('#sheet .in').onclick=ev=>{const a=ev.target.closest('[data-pa]')?.dataset.pa;if(a==='close')closeSheet();if(a==='del'&&confirm('Löschen?')){S.workouts=S.workouts.filter(x=>x.id!==id);save();closeSheet();render()}};
@@ -307,7 +323,7 @@ tEl.onclick=e=>{const a=e.target.dataset.a;if(a==='tstop')stopTimer();if(a==='t+
 function vPlans(){
   return `<h1>Pläne<small>Vorlagen für dein Training</small></h1>
   ${S.plans.map(p=>`<div class="card"><div class="row between"><div style="font-weight:600;font-size:17px">${esc(p.name)}</div><div><button class="btn ghost small" data-a="editplan" data-id="${p.id}">Bearbeiten</button></div></div>
-  <div class="muted" style="margin-top:6px">${p.exercises.map(e=>`${esc(e.name)} <span class="tiny">${e.sets}×${e.reps}</span>`).join('<br>')}</div></div>`).join('')||`<div class="empty">Noch keine Pläne. Lege z. B. Push, Pull, Legs an.</div>`}
+  <div class="muted" style="margin-top:6px">${p.exercises.map(e=>e.main?`<span class="tag main">Main</span>${esc(e.name)} <span class="tiny">${stageLabel(e.state?.stage||0)} @ ${e.state?.weight||e.weight} kg</span>`:`<span class="tag">${(e.type||'')[0]||''}</span>${esc(e.name)} <span class="tiny">${e.sets}×${e.reps}</span>`).join('<br>')}</div></div>`).join('')||`<div class="empty">Noch keine Pläne. Lege z. B. Push, Pull, Legs an.</div>`}
   <button class="btn wide primary" data-a="editplan">+ Neuer Plan</button>
   <h2>Daten</h2>
   <div class="card">
@@ -335,18 +351,23 @@ function planSheet(id){
   const p=id?clone(S.plans.find(x=>x.id===id)):{id:uid(),name:'',exercises:[]};
   const draw=()=>{sheet(`<h3>${id?'Plan bearbeiten':'Neuer Plan'}</h3>
     <div class="field"><label class="f">Name</label><input id="pn" value="${esc(p.name)}" placeholder="z. B. Push"></div>
-    ${p.exercises.map((e,i)=>`<div class="row" style="margin-bottom:8px"><input class="grow" value="${esc(e.name)}" data-pf="name" data-i="${i}" placeholder="Übung"><input type="number" inputmode="numeric" style="width:58px" value="${e.sets}" data-pf="sets" data-i="${i}"><span class="tiny">×</span><input type="number" inputmode="numeric" style="width:58px" value="${e.reps}" data-pf="reps" data-i="${i}"><button class="btn ghost small" data-pa="rm" data-i="${i}">✕</button></div>`).join('')}
+    ${p.exercises.map((e,i)=>`<div class="prow"><div class="row"><input class="grow" value="${esc(e.name)}" data-pf="name" data-i="${i}" placeholder="Übung"><button class="btn ghost small" data-pa="rm" data-i="${i}">✕</button></div>
+      <div class="row" style="margin-top:8px"><select data-pf="type" data-i="${i}" style="flex:1">${TYPES.map(t=>`<option ${e.type===t?'selected':''}>${t}</option>`).join('')}</select><button class="btn small ${e.main?'primary':''}" data-pa="main" data-i="${i}">Main</button></div>
+      ${e.main?`<div class="row" style="margin-top:8px"><div class="grow"><label class="f">Ausgangsgewicht (kg)</label><input type="number" inputmode="decimal" step="0.5" value="${e.weight||''}" data-pf="weight" data-i="${i}"></div><div style="width:90px"><label class="f">Schritt (kg)</label><input type="number" inputmode="decimal" step="0.5" value="${e.step||10}" data-pf="step" data-i="${i}"></div></div><div class="tiny" style="margin-top:6px">3-5-7-System: 10×3 → 7×5 → 5×7, dann +Schritt</div>`:`<div class="row" style="margin-top:8px"><span class="tiny">Sätze</span><input type="number" inputmode="numeric" style="width:64px" value="${e.sets}" data-pf="sets" data-i="${i}"><span class="tiny">× Reps</span><input type="number" inputmode="numeric" style="width:64px" value="${e.reps}" data-pf="reps" data-i="${i}"></div>`}
+    </div>`).join('')}
     <button class="btn small" data-pa="add" style="margin:4px 0 16px">+ Übung</button>
     <div class="grid2"><button class="btn" data-pa="close">Abbrechen</button><button class="btn primary" data-pa="save">Speichern</button></div>
     ${id?`<button class="btn ghost danger wide" data-pa="del" style="margin-top:8px">Plan löschen</button>`:''}`);
     const sh=document.querySelector('#sheet .in');
-    sh.oninput=ev=>{const t=ev.target;if(t.id==='pn')p.name=t.value;if(t.dataset.pf)p.exercises[t.dataset.i][t.dataset.pf]=t.dataset.pf==='name'?t.value:+t.value};
+    sh.oninput=ev=>{const t=ev.target;if(t.id==='pn')p.name=t.value;if(t.dataset.pf){const f=t.dataset.pf,e=p.exercises[t.dataset.i];e[f]=(f==='name'||f==='type')?t.value:+t.value;if(f==='weight'){e.state={weight:+t.value,stage:0}}}};
+    sh.onchange=sh.oninput;
     sh.onclick=ev=>{const b=ev.target.closest('[data-pa]');if(!b)return;const a=b.dataset.pa;
-      if(a==='add'){p.exercises.push({name:'',sets:3,reps:10});draw()}
+      if(a==='add'){p.exercises.push({name:'',type:'Freihand',sets:3,reps:10});draw()}
+      if(a==='main'){const i=+b.dataset.i,was=p.exercises[i].main;p.exercises.forEach(e=>{e.main=false});if(!was){p.exercises[i].main=true;p.exercises[i].step=p.exercises[i].step||10;p.exercises[i].state=p.exercises[i].state||{weight:p.exercises[i].weight||0,stage:0}}draw()}
       if(a==='rm'){p.exercises.splice(+b.dataset.i,1);draw()}
       if(a==='close')closeSheet();
       if(a==='del'){S.plans=S.plans.filter(x=>x.id!==id);save();closeSheet();render()}
-      if(a==='save'){p.exercises=p.exercises.filter(e=>e.name.trim());if(!p.name.trim()){toast('Name fehlt');return}
+      if(a==='save'){p.exercises=p.exercises.filter(e=>e.name.trim());if(!p.name.trim()){toast('Name fehlt');return}const m=p.exercises.find(e=>e.main);if(m&&!m.weight){toast('Ausgangsgewicht für Main fehlt');return}
         const i=S.plans.findIndex(x=>x.id===p.id);i<0?S.plans.push(p):S.plans[i]=p;save();closeSheet();render()}
     };
   };draw();
@@ -597,7 +618,7 @@ document.getElementById('upd').onclick=async()=>{try{if(navigator.serviceWorker)
 function changelogSheet(){const info=latestInfo&&latestInfo.version===APP_VERSION?latestInfo:null;
   sheet(`<h3>Was ist neu</h3>${(info?info.changes:CHANGES).map(c=>`<div class="item"><span class="tiny" style="min-width:36px">v${c.v}</span><span>${c.t.map(esc).join('<br>')}</span></div>`).join('')}<button class="btn wide" data-pa="close" style="margin-top:12px">OK</button>`);
   document.querySelector('#sheet .in').onclick=ev=>{if(ev.target.closest('[data-pa=close]'))closeSheet()}}
-const CHANGES=[{v:'5',t:['Overload-Vorschlag beim Start (Ziel-Reps geschafft → +2,5 kg)','Wochenübersicht und "zuletzt vor X Tagen" pro Plan','Notizen pro Übung, Aufwärmsätze','Mahlzeiten mit einem Tipp buchen','Ziele für Trainings- und Ruhetag, 7-Tage-Schnitt mit Gewichtstrend','Körpermaße, geglätteter Gewichtstrend','Update-Hinweis, CSV-Export']},{v:'4',t:['Makros: Barcode-Scanner, Open Food Facts, Mengenrechner']},{v:'3',t:['Automatisches Cloud-Backup (GitHub)']},{v:'2',t:['Letztes Training als Vorlage, Kraftvergleich nach dem Training']},{v:'1',t:['Erste Version']}];
+const CHANGES=[{v:'6',t:['Main-Übung mit 3-5-7-System (10×3 → 7×5 → 5×7 → +Schritt)','Übungen als Freihand / Maschine / Kabelturm markiert']},{v:'5',t:['Overload-Vorschlag beim Start (Ziel-Reps geschafft → +2,5 kg)','Wochenübersicht und "zuletzt vor X Tagen" pro Plan','Notizen pro Übung, Aufwärmsätze','Mahlzeiten mit einem Tipp buchen','Ziele für Trainings- und Ruhetag, 7-Tage-Schnitt mit Gewichtstrend','Körpermaße, geglätteter Gewichtstrend','Update-Hinweis, CSV-Export']},{v:'4',t:['Makros: Barcode-Scanner, Open Food Facts, Mengenrechner']},{v:'3',t:['Automatisches Cloud-Backup (GitHub)']},{v:'2',t:['Letztes Training als Vorlage, Kraftvergleich nach dem Training']},{v:'1',t:['Erste Version']}];
 if(localStorage.getItem('perf.seen')!==APP_VERSION){localStorage.setItem('perf.seen',APP_VERSION);if(localStorage.getItem(KEY))setTimeout(changelogSheet,600)}
 render();pullSync();checkUpdate();
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
