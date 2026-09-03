@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Performance</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Performance">
+<meta name="theme-color" content="#1c2026">
+<style>
+:root{
+  --bg:#1c2026; --bg2:#242930; --bg3:#2d333b; --line:#3a414b;
+  --ink:#eef0f3; --ink2:#a4acb8; --ink3:#6f7885;
+  --accent:#3f6fe8; --accent2:#5d86ef; --good:#3ec585; --warn:#e8a33f;
+  --r:14px; --pad:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.4;overscroll-behavior:none;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+input,select{background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;outline:none;font-variant-numeric:tabular-nums}
+input:focus,select:focus{border-color:var(--accent2)}
+input[type=number]{-moz-appearance:textfield}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none}
+button{background:none;border:none;cursor:pointer}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--bg3);border:1px solid var(--line);border-radius:12px;padding:12px 16px;font-weight:600;min-height:46px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.ghost{background:none;border-color:transparent;color:var(--ink2)}
+.btn.small{padding:7px 12px;min-height:34px;font-size:14px;border-radius:10px}
+.btn.wide{width:100%}
+.btn.danger{color:#ef6b6b}
+.num{font-variant-numeric:tabular-nums}
+
+#app{padding:calc(env(safe-area-inset-top) + 14px) var(--pad) 110px}
+h1{font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:8px 0 18px}
+h1 small{display:block;font-size:14px;font-weight:500;color:var(--ink2);letter-spacing:0;margin-top:4px}
+h2{font-size:17px;font-weight:600;margin:24px 0 10px}
+.card{background:var(--bg2);border-radius:var(--r);padding:14px;margin-bottom:10px}
+.row{display:flex;align-items:center;gap:10px}
+.row.between{justify-content:space-between}
+.grow{flex:1;min-width:0}
+.muted{color:var(--ink2);font-size:14px}
+.tiny{color:var(--ink3);font-size:13px}
+.empty{color:var(--ink2);padding:28px 8px;text-align:center;line-height:1.5}
+
+/* Tabs */
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:rgba(28,32,38,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--line);padding:6px 4px calc(env(safe-area-inset-bottom) + 6px)}
+nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;color:var(--ink3);font-size:11px;font-weight:600}
+nav button.on{color:var(--ink)}
+nav button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* Timer bar */
+#timer{position:fixed;left:var(--pad);right:var(--pad);bottom:calc(env(safe-area-inset-bottom) + 78px);background:var(--accent);color:#fff;border-radius:14px;padding:10px 14px;display:none;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:5}
+#timer.on{display:flex}
+#timer .t{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em;flex:1}
+#timer button{background:rgba(255,255,255,.18);border-radius:10px;padding:8px 12px;font-weight:600;color:#fff}
+#timer.done{background:var(--good);color:#0f2a1c}
+#timer.done button{color:#0f2a1c}
+
+/* Workout */
+.ex{margin-bottom:12px}
+.ex .name{font-weight:600;font-size:17px}
+.ex .prev{color:var(--ink3);font-size:13px;margin-top:2px}
+.sets{margin-top:8px;display:grid;grid-template-columns:28px 1fr 1fr 46px;gap:8px;align-items:center}
+.sets .h{font-size:12px;color:var(--ink3);text-align:center}
+.sets .n{color:var(--ink3);text-align:center;font-size:14px}
+.sets input{text-align:center;padding:10px 4px;font-size:17px}
+.sets .ok{width:46px;height:46px;border-radius:12px;background:var(--bg3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+.sets .ok.done{background:var(--good);border-color:var(--good);color:#0f2a1c}
+.sets .ok svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.set.done input{color:var(--ink2)}
+
+/* Progress bars (macros) */
+.bar{height:10px;background:var(--bg3);border-radius:6px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:6px;transition:width .3s}
+.bar i.over{background:var(--warn)}
+.macro{margin-bottom:14px}
+.macro .row{align-items:baseline}
+.macro b{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.list .item{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.list .item:last-child{border-bottom:none}
+canvas{width:100%;height:190px;display:block}
+.chip{display:inline-block;padding:5px 10px;border-radius:999px;background:var(--bg3);font-size:13px;color:var(--ink2);margin:0 6px 6px 0}
+.chip.on{background:var(--accent);color:#fff}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+label.f{display:block;font-size:12px;color:var(--ink3);margin-bottom:4px}
+
+/* Sheet */
+#sheet{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;z-index:10}
+#sheet.on{display:flex}
+#sheet .in{background:var(--bg2);width:100%;border-radius:20px 20px 0 0;padding:18px var(--pad) calc(env(safe-area-inset-bottom) + 18px);max-height:85vh;overflow:auto}
+#sheet h3{font-size:19px;font-weight:700;margin-bottom:14px}
+.field{margin-bottom:10px}
+.toast{position:fixed;top:calc(env(safe-area-inset-top) + 12px);left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;transition:opacity .2s;z-index:20;pointer-events:none}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="timer"><span class="t">1:30</span><button data-a="t-15">−15</button><button data-a="t+15">+15</button><button data-a="tstop">✕</button></div>
+<nav>
+  <button data-tab="log" class="on"><svg viewBox="0 0 24 24"><path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/></svg>Training</button>
+  <button data-tab="plans"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM9 9h6M9 13h6M9 17h3"/></svg>Pläne</button>
+  <button data-tab="progress"><svg viewBox="0 0 24 24"><path d="M3 20h18M4 16l5-6 4 3 7-8"/></svg>Fortschritt</button>
+  <button data-tab="body"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Körper</button>
+  <button data-tab="macros"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9h-9z"/><path d="M12 3a9 9 0 0 1 9 9"/></svg>Makros</button>
+</nav>
+<div id="sheet"><div class="in"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- State ---------- */
+const KEY='perf.v1';
+const clone=o=>JSON.parse(JSON.stringify(o));
+const def={plans:[],workouts:[],weights:[],macros:{},goals:{p:180,c:250,f:80},settings:{rest:90},active:null};
+let S=load();
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY));return s?Object.assign({},def,s):clone(def)}catch(e){return clone(def)}}
+function save(){localStorage.setItem(KEY,JSON.stringify(S))}
+const uid=()=>Math.random().toString(36).slice(2,9);
+const today=()=>new Date().toISOString().slice(0,10);
+const fmtD=d=>new Date(d+(d.length===10?'T12:00':'')).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+const fmtDL=d=>new Date(d).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'});
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const e1rm=(w,r)=>r>0?w*(1+r/30):0;
+let tab='log',progEx=null,macroDay=today();
+const app=document.getElementById('app');
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),1600)}
+
+/* ---------- Render ---------- */
+function render(){
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+  app.innerHTML=({log:vLog,plans:vPlans,progress:vProgress,body:vBody,macros:vMacros})[tab]();
+  if(tab==='progress')drawProgress();
+  if(tab==='body')drawWeight();
+  window.scrollTo(0,0);
+}
+document.querySelector('nav').onclick=e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.tab;render()};
+
+/* ---------- Training ---------- */
+function lastSets(name){
+  for(let i=S.workouts.length-1;i>=0;i--){const ex=S.workouts[i].exercises.find(x=>x.name===name);if(ex){const d=ex.sets.filter(s=>s.done&&s.w>0);if(d.length)return d}}
+  return null;
+}
+function vLog(){
+  if(S.active)return vActive();
+  const recent=S.workouts.slice(-8).reverse();
+  return `<h1>Training<small>${new Date().toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'})}</small></h1>
+  <div class="card">
+    <div class="muted" style="margin-bottom:10px">Workout starten</div>
+    ${S.plans.map(p=>`<button class="btn wide" style="margin-bottom:8px;justify-content:space-between" data-a="start" data-id="${p.id}"><span>${esc(p.name)}</span><span class="tiny">${p.exercises.length} Übungen</span></button>`).join('')}
+    <button class="btn wide ${S.plans.length?'':'primary'}" data-a="start">Freies Training</button>
+  </div>
+  <h2>Verlauf</h2>
+  ${recent.length?recent.map(w=>`<div class="card row between" data-a="showw" data-id="${w.id}"><div><div style="font-weight:600">${esc(w.name)}</div><div class="tiny">${fmtDL(w.date)} · ${w.exercises.length} Übungen · ${Math.round(w.duration/60)} min</div></div><div class="num muted">${vol(w).toLocaleString('de-DE')} kg</div></div>`).join(''):`<div class="empty">Noch kein Training gespeichert.</div>`}`;
+}
+function vol(w){return w.exercises.reduce((a,e)=>a+e.sets.filter(s=>s.done).reduce((b,s)=>b+s.w*s.r,0),0)}
+function vActive(){
+  const a=S.active,min=Math.round((Date.now()-a.start)/60000);
+  return `<div class="row between" style="margin-top:6px"><h1 style="margin:0">${esc(a.name)}<small>${min} min · ${vol(a).toLocaleString('de-DE')} kg bewegt</small></h1><button class="btn ghost danger small" data-a="cancel">Abbrechen</button></div>
+  ${a.exercises.map((ex,ei)=>{const prev=lastSets(ex.name);return `<div class="card ex">
+    <div class="row between"><div class="grow"><div class="name">${esc(ex.name)}</div><div class="prev">${prev?'Letztes Mal: '+prev.map(s=>s.w+'×'+s.r).join(', '):'Erstes Mal'}</div></div><button class="btn ghost small" data-a="rmex" data-i="${ei}">✕</button></div>
+    <div class="sets"><div class="h">Satz</div><div class="h">kg</div><div class="h">Reps</div><div class="h"></div>
+    ${ex.sets.map((s,si)=>`<div class="n">${si+1}</div><input type="number" inputmode="decimal" step="0.5" value="${s.w||''}" placeholder="${prev?.[si]?.w??''}" data-f="w" data-i="${ei}" data-s="${si}"><input type="number" inputmode="numeric" value="${s.r||''}" placeholder="${prev?.[si]?.r??ex.targetReps??''}" data-f="r" data-i="${ei}" data-s="${si}"><button class="ok ${s.done?'done':''}" data-a="done" data-i="${ei}" data-s="${si}"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></button>`).join('')}
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn small" data-a="addset" data-i="${ei}">+ Satz</button>${ex.sets.length>1?`<button class="btn ghost small" data-a="rmset" data-i="${ei}">− Satz</button>`:''}</div>
+  </div>`}).join('')}
+  <button class="btn wide" data-a="addex" style="margin-bottom:10px">+ Übung hinzufügen</button>
+  <button class="btn wide primary" data-a="finish">Training beenden</button>`;
+}
+function startWorkout(planId){
+  const p=S.plans.find(x=>x.id===planId);
+  S.active={id:uid(),name:p?p.name:'Freies Training',planId:planId||null,start:Date.now(),
+    exercises:p?p.exercises.map(e=>({name:e.name,targetReps:e.reps,sets:Array.from({length:e.sets||3},()=>({w:0,r:0,done:false}))})):[]};
+  save();render();
+}
+function finishWorkout(){
+  const a=S.active;a.exercises=a.exercises.map(e=>({name:e.name,sets:e.sets.filter(s=>s.done)})).filter(e=>e.sets.length);
+  if(!a.exercises.length){toast('Keine Sätze abgehakt');return}
+  S.workouts.push({id:a.id,name:a.name,date:new Date().toISOString(),duration:(Date.now()-a.start)/1000,exercises:a.exercises});
+  S.active=null;stopTimer();save();toast('Training gespeichert');render();
+}
+
+/* ---------- Timer ---------- */
+let tEnd=0,tInt=null;const tEl=document.getElementById('timer');
+function startTimer(sec){tEnd=Date.now()+sec*1000;tEl.classList.add('on');tEl.classList.remove('done');clearInterval(tInt);tInt=setInterval(tick,250);tick()}
+function tick(){let s=Math.ceil((tEnd-Date.now())/1000);if(s<=0){s=0;tEl.classList.add('done');clearInterval(tInt);if(navigator.vibrate)navigator.vibrate([200,100,200]);setTimeout(stopTimer,4000)}tEl.querySelector('.t').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+function stopTimer(){clearInterval(tInt);tEl.classList.remove('on','done')}
+tEl.onclick=e=>{const a=e.target.dataset.a;if(a==='tstop')stopTimer();if(a==='t+15'){tEnd+=15000;tick()}if(a==='t-15'){tEnd-=15000;tick()}};
+
+/* ---------- Pläne ---------- */
+function vPlans(){
+  return `<h1>Pläne<small>Vorlagen für dein Training</small></h1>
+  ${S.plans.map(p=>`<div class="card"><div class="row between"><div style="font-weight:600;font-size:17px">${esc(p.name)}</div><div><button class="btn ghost small" data-a="editplan" data-id="${p.id}">Bearbeiten</button></div></div>
+  <div class="muted" style="margin-top:6px">${p.exercises.map(e=>`${esc(e.name)} <span class="tiny">${e.sets}×${e.reps}</span>`).join('<br>')}</div></div>`).join('')||`<div class="empty">Noch keine Pläne. Lege z. B. Push, Pull, Legs an.</div>`}
+  <button class="btn wide primary" data-a="editplan">+ Neuer Plan</button>
+  <h2>Daten</h2>
+  <div class="card">
+    <div class="row"><div class="grow"><label class="f">Pausenzeit (Sek.)</label><input type="number" inputmode="numeric" id="restIn" value="${S.settings.rest}"></div></div>
+    <div class="grid2" style="margin-top:10px"><button class="btn" data-a="export">Backup exportieren</button><button class="btn" data-a="import">Backup laden</button></div>
+    <div class="tiny" style="margin-top:8px">Alle Daten liegen nur auf diesem Gerät. Exportiere regelmäßig.</div>
+  </div>`;
+}
+function planSheet(id){
+  const p=id?clone(S.plans.find(x=>x.id===id)):{id:uid(),name:'',exercises:[]};
+  const draw=()=>{sheet(`<h3>${id?'Plan bearbeiten':'Neuer Plan'}</h3>
+    <div class="field"><label class="f">Name</label><input id="pn" value="${esc(p.name)}" placeholder="z. B. Push"></div>
+    ${p.exercises.map((e,i)=>`<div class="row" style="margin-bottom:8px"><input class="grow" value="${esc(e.name)}" data-pf="name" data-i="${i}" placeholder="Übung"><input type="number" inputmode="numeric" style="width:58px" value="${e.sets}" data-pf="sets" data-i="${i}"><span class="tiny">×</span><input type="number" inputmode="numeric" style="width:58px" value="${e.reps}" data-pf="reps" data-i="${i}"><button class="btn ghost small" data-pa="rm" data-i="${i}">✕</button></div>`).join('')}
+    <button class="btn small" data-pa="add" style="margin:4px 0 16px">+ Übung</button>
+    <div class="grid2"><button class="btn" data-pa="close">Abbrechen</button><button class="btn primary" data-pa="save">Speichern</button></div>
+    ${id?`<button class="btn ghost danger wide" data-pa="del" style="margin-top:8px">Plan löschen</button>`:''}`);
+    const sh=document.querySelector('#sheet .in');
+    sh.oninput=ev=>{const t=ev.target;if(t.id==='pn')p.name=t.value;if(t.dataset.pf)p.exercises[t.dataset.i][t.dataset.pf]=t.dataset.pf==='name'?t.value:+t.value};
+    sh.onclick=ev=>{const b=ev.target.closest('[data-pa]');if(!b)return;const a=b.dataset.pa;
+      if(a==='add'){p.exercises.push({name:'',sets:3,reps:10});draw()}
+      if(a==='rm'){p.exercises.splice(+b.dataset.i,1);draw()}
+      if(a==='close')closeSheet();
+      if(a==='del'){S.plans=S.plans.filter(x=>x.id!==id);save();closeSheet();render()}
+      if(a==='save'){p.exercises=p.exercises.filter(e=>e.name.trim());if(!p.name.trim()){toast('Name fehlt');return}
+        const i=S.plans.findIndex(x=>x.id===p.id);i<0?S.plans.push(p):S.plans[i]=p;save();closeSheet();render()}
+    };
+  };draw();
+}
+
+/* ---------- Fortschritt ---------- */
+function allExercises(){const m={};S.workouts.forEach(w=>w.exercises.forEach(e=>m[e.name]=(m[e.name]||0)+1));return Object.keys(m).sort((a,b)=>m[b]-m[a])}
+function exHistory(name){return S.workouts.map(w=>{const e=w.exercises.find(x=>x.name===name);if(!e)return null;const best=e.sets.reduce((a,s)=>e1rm(s.w,s.r)>e1rm(a.w,a.r)?s:a,e.sets[0]);return{d:w.date,w:best.w,r:best.r,rm:e1rm(best.w,best.r),vol:e.sets.reduce((a,s)=>a+s.w*s.r,0)}}).filter(Boolean)}
+function vProgress(){
+  const ex=allExercises();if(!progEx||!ex.includes(progEx))progEx=ex[0]||null;
+  if(!progEx)return `<h1>Fortschritt</h1><div class="empty">Sobald du Trainings gespeichert hast, siehst du hier deine Entwicklung pro Übung.</div>`;
+  const h=exHistory(progEx),last=h[h.length-1],pr=h.reduce((a,x)=>x.rm>a.rm?x:a,h[0]);
+  return `<h1>Fortschritt</h1>
+  <div style="margin-bottom:8px">${ex.map(n=>`<button class="chip ${n===progEx?'on':''}" data-a="pex" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>
+  <div class="card"><div class="muted">Geschätztes 1RM</div><canvas id="c1"></canvas></div>
+  <div class="grid2">
+    <div class="card"><div class="tiny">Bestleistung</div><div class="num" style="font-size:24px;font-weight:700">${pr.w} × ${pr.r}</div><div class="tiny">${fmtD(pr.d)} · 1RM ≈ ${Math.round(pr.rm)} kg</div></div>
+    <div class="card"><div class="tiny">Zuletzt</div><div class="num" style="font-size:24px;font-weight:700">${last.w} × ${last.r}</div><div class="tiny">${fmtD(last.d)} · Volumen ${last.vol} kg</div></div>
+  </div>
+  <div class="card list">${h.slice(-10).reverse().map(x=>`<div class="item"><span class="muted">${fmtD(x.d)}</span><span class="num">${x.w} × ${x.r} <span class="tiny">≈ ${Math.round(x.rm)} kg</span></span></div>`).join('')}</div>`;
+}
+function drawProgress(){const h=exHistory(progEx);lineChart(document.getElementById('c1'),h.map(x=>({d:x.d,y:Math.round(x.rm)})))}
+function lineChart(cv,pts){
+  if(!cv)return;const dpr=devicePixelRatio||1,W=cv.clientWidth,H=190;cv.width=W*dpr;cv.height=H*dpr;const c=cv.getContext('2d');c.scale(dpr,dpr);
+  const cs=getComputedStyle(document.body),acc=cs.getPropertyValue('--accent').trim(),ink3=cs.getPropertyValue('--ink3').trim();
+  if(pts.length<1){c.fillStyle=ink3;c.font='14px sans-serif';c.fillText('Noch keine Daten',10,30);return}
+  const L=38,R=10,T=14,B=26,ys=pts.map(p=>p.y);let lo=Math.min(...ys),hi=Math.max(...ys);if(hi===lo){hi+=5;lo-=5}const pad=(hi-lo)*.15;lo-=pad;hi+=pad;
+  const X=i=>pts.length>1?L+(W-L-R)*i/(pts.length-1):(L+W-R)/2,Y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  c.strokeStyle='#3a414b';c.lineWidth=1;c.fillStyle=ink3;c.font='11px -apple-system,sans-serif';c.textAlign='right';
+  for(let k=0;k<=3;k++){const v=lo+(hi-lo)*k/3,y=Y(v);c.beginPath();c.moveTo(L,y);c.lineTo(W-R,y);c.stroke();c.fillText(Math.round(v),L-6,y+4)}
+  c.textAlign='center';const step=Math.ceil(pts.length/5);pts.forEach((p,i)=>{if(i%step===0||i===pts.length-1)c.fillText(fmtD(p.d),X(i),H-8)});
+  c.strokeStyle=acc;c.lineWidth=2.5;c.lineJoin='round';c.beginPath();pts.forEach((p,i)=>i?c.lineTo(X(i),Y(p.y)):c.moveTo(X(i),Y(p.y)));c.stroke();
+  c.fillStyle=acc;pts.forEach((p,i)=>{c.beginPath();c.arc(X(i),Y(p.y),3.5,0,7);c.fill()});
+}
+
+/* ---------- Körper ---------- */
+function vBody(){
+  const ws=[...S.weights].sort((a,b)=>a.d<b.d?-1:1),last=ws[ws.length-1],wk=ws.filter(x=>x.d>=new Date(Date.now()-7*864e5).toISOString().slice(0,10));
+  const avg=wk.length?wk.reduce((a,x)=>a+x.w,0)/wk.length:null;
+  return `<h1>Körper<small>Gewicht & Pausen-Timer</small></h1>
+  <div class="card"><div class="row"><div class="grow"><label class="f">Gewicht heute (kg)</label><input type="number" inputmode="decimal" step="0.1" id="wIn" value="${ws.find(x=>x.d===today())?.w??''}" placeholder="${last?last.w:'z. B. 82.5'}"></div><button class="btn primary" data-a="savew" style="margin-top:18px">Speichern</button></div></div>
+  <div class="grid2">
+    <div class="card"><div class="tiny">Aktuell</div><div class="num" style="font-size:26px;font-weight:700">${last?last.w.toFixed(1):'–'}<span class="tiny"> kg</span></div><div class="tiny">${last?fmtD(last.d):''}</div></div>
+    <div class="card"><div class="tiny">Ø 7 Tage</div><div class="num" style="font-size:26px;font-weight:700">${avg?avg.toFixed(1):'–'}<span class="tiny"> kg</span></div><div class="tiny">${wk.length} Einträge</div></div>
+  </div>
+  <div class="card"><canvas id="c2"></canvas></div>
+  <h2>Pausen-Timer</h2>
+  <div class="grid4">${[60,90,120,180].map(s=>`<button class="btn" data-a="timer" data-s="${s}">${s>=120?s/60+' min':s+' s'}</button>`).join('')}</div>
+  ${ws.length?`<h2>Einträge</h2><div class="card list">${ws.slice(-10).reverse().map(x=>`<div class="item"><span class="muted">${fmtD(x.d)}</span><span class="row"><span class="num">${x.w.toFixed(1)} kg</span><button class="btn ghost small" data-a="rmw" data-d="${x.d}">✕</button></span></div>`).join('')}</div>`:''}`;
+}
+function drawWeight(){const ws=[...S.weights].sort((a,b)=>a.d<b.d?-1:1).slice(-30);lineChart(document.getElementById('c2'),ws.map(x=>({d:x.d,y:x.w})))}
+
+/* ---------- Makros ---------- */
+function vMacros(){
+  const g=S.goals,items=S.macros[macroDay]||[],t=items.reduce((a,i)=>({p:a.p+i.p,c:a.c+i.c,f:a.f+i.f}),{p:0,c:0,f:0});
+  const kcal=o=>Math.round(o.p*4+o.c*4+o.f*9),gk=kcal(g),tk=kcal(t);
+  const bar=(l,v,goal,u='g')=>`<div class="macro"><div class="row between"><span>${l}</span><span class="num"><b>${Math.round(v)}</b> <span class="tiny">/ ${goal} ${u}</span></span></div><div class="bar"><i class="${v>goal*1.1?'over':''}" style="width:${Math.min(100,v/goal*100)}%"></i></div></div>`;
+  const isT=macroDay===today();
+  return `<div class="row between" style="margin-top:6px"><h1 style="margin:0">Makros<small>${isT?'Heute':fmtDL(macroDay+'T12:00')} · noch ${Math.max(0,Math.round(g.p-t.p))} g Protein</small></h1><div class="row"><button class="btn ghost small" data-a="mday" data-o="-1">‹</button><button class="btn ghost small" data-a="mday" data-o="1" ${isT?'disabled style="opacity:.3"':''}>›</button></div></div>
+  <div class="card">
+    ${bar('Protein',t.p,g.p)}${bar('Kohlenhydrate',t.c,g.c)}${bar('Fett',t.f,g.f)}${bar('Kalorien',tk,gk,'kcal')}
+    <button class="btn ghost small" data-a="goals">Ziele anpassen</button>
+  </div>
+  <div class="card">
+    <div class="muted" style="margin-bottom:8px">Eintrag hinzufügen</div>
+    <input id="mn" placeholder="Was? (z. B. Skyr 500 g)" style="margin-bottom:8px">
+    <div class="grid3"><div><label class="f">Protein</label><input type="number" inputmode="decimal" id="mp"></div><div><label class="f">Carbs</label><input type="number" inputmode="decimal" id="mc"></div><div><label class="f">Fett</label><input type="number" inputmode="decimal" id="mf"></div></div>
+    <button class="btn primary wide" data-a="addm" style="margin-top:10px">Hinzufügen</button>
+  </div>
+  ${items.length?`<div class="card list">${items.map((i,idx)=>`<div class="item"><div class="grow"><div>${esc(i.n)||'<span class="tiny">Ohne Namen</span>'}</div><div class="tiny num">P ${i.p} · C ${i.c} · F ${i.f} · ${kcal(i)} kcal</div></div><button class="btn ghost small" data-a="rmm" data-i="${idx}">✕</button></div>`).join('')}</div>`:`<div class="empty">Noch nichts eingetragen.</div>`}`;
+}
+function goalsSheet(){
+  sheet(`<h3>Tagesziele</h3><div class="grid3">${[['p','Protein'],['c','Carbs'],['f','Fett']].map(([k,l])=>`<div><label class="f">${l} (g)</label><input type="number" inputmode="numeric" id="g${k}" value="${S.goals[k]}"></div>`).join('')}</div>
+  <div class="tiny" style="margin:8px 0 16px">Kalorienziel ergibt sich daraus: ${Math.round(S.goals.p*4+S.goals.c*4+S.goals.f*9)} kcal</div>
+  <div class="grid2"><button class="btn" data-pa="close">Abbrechen</button><button class="btn primary" data-pa="save">Speichern</button></div>`);
+  document.querySelector('#sheet .in').onclick=ev=>{const a=ev.target.closest('[data-pa]')?.dataset.pa;if(!a)return;if(a==='save'){['p','c','f'].forEach(k=>S.goals[k]=+document.getElementById('g'+k).value||0);save();render()}closeSheet()};
+}
+
+/* ---------- Sheet ---------- */
+function sheet(html){document.querySelector('#sheet .in').innerHTML=html;document.getElementById('sheet').classList.add('on')}
+function closeSheet(){document.getElementById('sheet').classList.remove('on')}
+document.getElementById('sheet').addEventListener('click',e=>{if(e.target.id==='sheet')closeSheet()});
+function prompt2(title,cb,ph=''){sheet(`<h3>${title}</h3><input id="pv" placeholder="${ph}" style="margin-bottom:14px"><div class="grid2"><button class="btn" data-pa="close">Abbrechen</button><button class="btn primary" data-pa="ok">OK</button></div>`);
+  const inp=document.getElementById('pv');setTimeout(()=>inp.focus(),50);inp.onkeydown=e=>{if(e.key==='Enter')go()};
+  const go=()=>{const v=inp.value.trim();closeSheet();if(v)cb(v)};
+  document.querySelector('#sheet .in').onclick=ev=>{const a=ev.target.closest('[data-pa]')?.dataset.pa;if(a==='ok')go();if(a==='close')closeSheet()}}
+
+/* ---------- Events ---------- */
+app.addEventListener('input',e=>{const t=e.target;
+  if(t.dataset.f&&S.active){S.active.exercises[t.dataset.i].sets[t.dataset.s][t.dataset.f]=+t.value||0;save()}
+  if(t.id==='restIn'){S.settings.rest=+t.value||90;save()}
+});
+app.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,d=b.dataset;
+  if(a==='start')startWorkout(d.id);
+  if(a==='cancel'&&confirm('Training verwerfen?')){S.active=null;stopTimer();save();render()}
+  if(a==='finish')finishWorkout();
+  if(a==='done'){const s=S.active.exercises[d.i].sets[d.s];
+    if(!s.done){const prev=lastSets(S.active.exercises[d.i].name);if(!s.w&&prev?.[d.s])s.w=prev[d.s].w;if(!s.r&&prev?.[d.s])s.r=prev[d.s].r;if(!s.w||!s.r){toast('kg und Reps eintragen');return}s.done=true;startTimer(S.settings.rest)}else s.done=false;
+    save();render()}
+  if(a==='addset'){const ss=S.active.exercises[d.i].sets,l=ss[ss.length-1];ss.push({w:l?l.w:0,r:l?l.r:0,done:false});save();render()}
+  if(a==='rmset'){S.active.exercises[d.i].sets.pop();save();render()}
+  if(a==='rmex'){S.active.exercises.splice(+d.i,1);save();render()}
+  if(a==='addex')prompt2('Übung',n=>{S.active.exercises.push({name:n,sets:[{w:0,r:0,done:false},{w:0,r:0,done:false},{w:0,r:0,done:false}]});save();render()},'z. B. Bankdrücken');
+  if(a==='showw'){const w=S.workouts.find(x=>x.id===d.id);sheet(`<h3>${esc(w.name)}</h3><div class="tiny" style="margin-bottom:12px">${fmtDL(w.date)} · ${Math.round(w.duration/60)} min · ${vol(w).toLocaleString('de-DE')} kg</div>${w.exercises.map(x=>`<div style="margin-bottom:10px"><div style="font-weight:600">${esc(x.name)}</div><div class="muted num">${x.sets.map(s=>s.w+'×'+s.r).join('  ·  ')}</div></div>`).join('')}<button class="btn ghost danger wide" data-pa="del" style="margin-top:8px">Training löschen</button>`);
+    document.querySelector('#sheet .in').onclick=ev=>{if(ev.target.closest('[data-pa=del]')&&confirm('Löschen?')){S.workouts=S.workouts.filter(x=>x.id!==d.id);save();closeSheet();render()}}}
+  if(a==='editplan')planSheet(d.id);
+  if(a==='pex'){progEx=d.n;render()}
+  if(a==='savew'){const v=+document.getElementById('wIn').value;if(!v)return;S.weights=S.weights.filter(x=>x.d!==today());S.weights.push({d:today(),w:v});save();toast('Gespeichert');render()}
+  if(a==='rmw'){S.weights=S.weights.filter(x=>x.d!==d.d);save();render()}
+  if(a==='timer')startTimer(+d.s);
+  if(a==='mday'){const dt=new Date(macroDay+'T12:00');dt.setDate(dt.getDate()+ +d.o);macroDay=dt.toISOString().slice(0,10);render()}
+  if(a==='goals')goalsSheet();
+  if(a==='addm'){const it={n:document.getElementById('mn').value.trim(),p:+document.getElementById('mp').value||0,c:+document.getElementById('mc').value||0,f:+document.getElementById('mf').value||0};
+    if(!it.p&&!it.c&&!it.f){toast('Werte eintragen');return}(S.macros[macroDay]=S.macros[macroDay]||[]).push(it);save();render()}
+  if(a==='rmm'){S.macros[macroDay].splice(+d.i,1);save();render()}
+  if(a==='export'){const bl=new Blob([JSON.stringify(S)],{type:'application/json'}),u=URL.createObjectURL(bl),l=document.createElement('a');l.href=u;l.download='performance-backup-'+today()+'.json';l.click()}
+  if(a==='import'){const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=()=>{const r=new FileReader();r.onload=()=>{try{S=Object.assign({},def,JSON.parse(r.result));save();toast('Backup geladen');render()}catch(e){toast('Ungültige Datei')}};r.readAsText(i.files[0])};i.click()}
+});
+window.addEventListener('resize',()=>{if(tab==='progress')drawProgress();if(tab==='body')drawWeight()});
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+render();
+</script>
+</body>
+</html>
