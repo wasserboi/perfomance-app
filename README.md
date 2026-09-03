@@ -23,3 +23,9 @@ Wenn du die Safari-Website-Daten löschst oder die App vom Home-Bildschirm entfe
 - `manifest.json` – Name, Icon, Vollbild
 - `sw.js` – Service Worker fürs Offline-Caching
 - `icon-180.png`, `icon-512.png` – Home-Screen-Icon
+
+## Cloud-Backup
+
+Die App sichert automatisch nach jeder Änderung eine `data.json` in ein privates GitHub-Repo (Standard: `wasserboi/perf-data`).
+Einrichten: Pläne → Cloud-Backup → Token eintragen → Verbinden. Der Token liegt nur im Gerät, nicht im Code.
+Jeder Stand ist in der Commit-Historie des Daten-Repos abrufbar.

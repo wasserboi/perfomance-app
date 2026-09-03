@@ -121,7 +121,50 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 const def={plans:[],workouts:[],weights:[],macros:{},goals:{p:180,c:250,f:80},settings:{rest:90},active:null};
 let S=load();
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));return s?Object.assign({},def,s):clone(def)}catch(e){return clone(def)}}
-function save(){localStorage.setItem(KEY,JSON.stringify(S))}
+function save(){S.updatedAt=Date.now();localStorage.setItem(KEY,JSON.stringify(S));scheduleSync()}
+/* ---------- GitHub Sync ---------- */
+const SKEY='perf.sync';
+let SY=JSON.parse(localStorage.getItem(SKEY)||'{"token":"","repo":"wasserboi/perf-data","sha":null,"last":0,"state":"off","pending":false}');
+function saveSY(){localStorage.setItem(SKEY,JSON.stringify(SY))}
+const ghUrl=()=>`https://api.github.com/repos/${SY.repo}/contents/data.json`;
+const ghH=()=>({Authorization:'Bearer '+SY.token,Accept:'application/vnd.github+json','Content-Type':'application/json'});
+const b64e=str=>btoa(unescape(encodeURIComponent(str)));
+const b64d=b=>decodeURIComponent(escape(atob(b.replace(/\n/g,''))));
+let syncT=null;
+function scheduleSync(){if(!SY.token)return;SY.pending=true;saveSY();clearTimeout(syncT);syncT=setTimeout(pushSync,3000);setStatus('Änderungen werden gesichert…')}
+async function ghGet(){const r=await fetch(ghUrl(),{headers:ghH(),cache:'no-store'});if(r.status===404)return null;if(!r.ok)throw new Error('GitHub '+r.status);const j=await r.json();return{sha:j.sha,data:JSON.parse(b64d(j.content))}}
+async function pushSync(retry=true){
+  if(!SY.token||!navigator.onLine)return;
+  try{
+    const body={message:'Backup '+new Date().toLocaleString('de-DE'),content:b64e(JSON.stringify(S))};if(SY.sha)body.sha=SY.sha;
+    const r=await fetch(ghUrl(),{method:'PUT',headers:ghH(),body:JSON.stringify(body)});
+    if((r.status===409||r.status===422)&&retry){const g=await ghGet();SY.sha=g?g.sha:null;saveSY();return pushSync(false)}
+    if(!r.ok)throw new Error('GitHub '+r.status);
+    const j=await r.json();SY.sha=j.content.sha;SY.last=Date.now();SY.pending=false;SY.state='ok';saveSY();setStatus();
+  }catch(e){SY.state='err:'+e.message;saveSY();setStatus()}
+}
+async function pullSync(force){
+  if(!SY.token||!navigator.onLine)return;
+  try{
+    const g=await ghGet();
+    if(!g){await pushSync();return}
+    SY.sha=g.sha;
+    if(force||(g.data.updatedAt||0)>(S.updatedAt||0)){S=Object.assign({},def,g.data);localStorage.setItem(KEY,JSON.stringify(S));SY.state='ok';SY.last=Date.now();SY.pending=false;saveSY();render();if(force)toast('Backup wiederhergestellt')}
+    else if(SY.pending||(S.updatedAt||0)>(g.data.updatedAt||0))await pushSync();
+    else{SY.state='ok';saveSY()}
+    setStatus();
+  }catch(e){SY.state='err:'+e.message;saveSY();setStatus()}
+}
+function syncText(){
+  if(!SY.token)return'Kein Cloud-Backup eingerichtet';
+  if(SY.state.startsWith('err'))return'Backup fehlgeschlagen ('+SY.state.slice(4)+') – Token und Repo prüfen';
+  if(SY.pending)return navigator.onLine?'Änderungen werden gesichert…':'Offline – wird gesichert, sobald Netz da ist';
+  return SY.last?'Gesichert '+new Date(SY.last).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'Bereit';
+}
+function setStatus(t){const el=document.getElementById('syncStatus');if(el)el.textContent=t||syncText()}
+window.addEventListener('online',()=>{if(SY.pending)pushSync()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')pullSync()});
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
 const uid=()=>Math.random().toString(36).slice(2,9);
 const today=()=>new Date().toISOString().slice(0,10);
 const fmtD=d=>new Date(d+(d.length===10?'T12:00':'')).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
@@ -235,8 +278,18 @@ function vPlans(){
   <h2>Daten</h2>
   <div class="card">
     <div class="row"><div class="grow"><label class="f">Pausenzeit (Sek.)</label><input type="number" inputmode="numeric" id="restIn" value="${S.settings.rest}"></div></div>
-    <div class="grid2" style="margin-top:10px"><button class="btn" data-a="export">Backup exportieren</button><button class="btn" data-a="import">Backup laden</button></div>
-    <div class="tiny" style="margin-top:8px">Alle Daten liegen nur auf diesem Gerät. Exportiere regelmäßig.</div>
+  </div>
+  <h2>Cloud-Backup (GitHub)</h2>
+  <div class="card">
+    <div class="row between" style="margin-bottom:10px"><span id="syncStatus" class="muted">${syncText()}</span>${SY.token?`<button class="btn small" data-a="syncnow">Jetzt sichern</button>`:''}</div>
+    <div class="field"><label class="f">Privates Repo (Nutzer/Name)</label><input id="syRepo" value="${esc(SY.repo)}" autocapitalize="off" autocorrect="off"></div>
+    <div class="field"><label class="f">Token</label><input id="syTok" type="password" value="${esc(SY.token)}" placeholder="github_pat_…" autocapitalize="off" autocorrect="off"></div>
+    <div class="grid2"><button class="btn primary" data-a="syncsave">Verbinden</button><button class="btn" data-a="syncpull" ${SY.token?'':'disabled style="opacity:.4"'}>Wiederherstellen</button></div>
+    <div class="tiny" style="margin-top:8px">Sichert nach jeder Änderung automatisch eine data.json ins Repo. Beim Öffnen wird der neueste Stand geladen. Der Token bleibt nur auf diesem Gerät.</div>
+  </div>
+  <h2>Manuelles Backup</h2>
+  <div class="card">
+    <div class="grid2"><button class="btn" data-a="export">Exportieren</button><button class="btn" data-a="import">Datei laden</button></div>
   </div>`;
 }
 function planSheet(id){
@@ -369,12 +422,15 @@ app.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)retu
   if(a==='addm'){const it={n:document.getElementById('mn').value.trim(),p:+document.getElementById('mp').value||0,c:+document.getElementById('mc').value||0,f:+document.getElementById('mf').value||0};
     if(!it.p&&!it.c&&!it.f){toast('Werte eintragen');return}(S.macros[macroDay]=S.macros[macroDay]||[]).push(it);save();render()}
   if(a==='rmm'){S.macros[macroDay].splice(+d.i,1);save();render()}
+  if(a==='syncsave'){SY.repo=document.getElementById('syRepo').value.trim().replace(/^https?:\/\/github\.com\//,'').replace(/\/$/,'');SY.token=document.getElementById('syTok').value.trim();SY.sha=null;SY.state='off';saveSY();if(SY.token){toast('Verbinde…');pullSync().then(()=>{render();toast(SY.state==='ok'?'Cloud-Backup aktiv':'Verbindung fehlgeschlagen')})}else render()}
+  if(a==='syncnow')pushSync();
+  if(a==='syncpull'&&confirm('Lokale Daten durch das Cloud-Backup ersetzen?'))pullSync(true);
   if(a==='export'){const bl=new Blob([JSON.stringify(S)],{type:'application/json'}),u=URL.createObjectURL(bl),l=document.createElement('a');l.href=u;l.download='performance-backup-'+today()+'.json';l.click()}
   if(a==='import'){const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=()=>{const r=new FileReader();r.onload=()=>{try{S=Object.assign({},def,JSON.parse(r.result));save();toast('Backup geladen');render()}catch(e){toast('Ungültige Datei')}};r.readAsText(i.files[0])};i.click()}
 });
 window.addEventListener('resize',()=>{if(tab==='progress')drawProgress();if(tab==='body')drawWeight()});
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
-render();
+render();pullSync();
 </script>
 </body>
 </html>
