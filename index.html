@@ -148,7 +148,7 @@ if(location.search)history.replaceState(null,'',location.pathname);
 /* ---------- State ---------- */
 const KEY='perf.v1';
 const clone=o=>JSON.parse(JSON.stringify(o));
-const APP_VERSION='6';
+const APP_VERSION='7';
 const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];const TYPES=['Freihand','Maschine','Kabelturm'];
 const stageLabel=st=>STAGES[st].sets+'×'+STAGES[st].reps;
 const def={plans:[],workouts:[],weights:[],macros:{},foods:[],meals:[],measures:[],exNotes:{},dayType:{},goals:{p:180,c:250,f:80},goalsRest:null,settings:{rest:90,overload:2.5},active:null};
@@ -321,31 +321,38 @@ tEl.onclick=e=>{const a=e.target.dataset.a;if(a==='tstop')stopTimer();if(a==='t+
 
 /* ---------- Pläne ---------- */
 function vPlans(){
-  return `<h1>Pläne<small>Vorlagen für dein Training</small></h1>
+  return `<div class="row between"><h1>Pläne<small>Vorlagen für dein Training</small></h1><button class="btn ghost" data-a="settings" aria-label="Einstellungen"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div>
   ${S.plans.map(p=>`<div class="card"><div class="row between"><div style="font-weight:600;font-size:17px">${esc(p.name)}</div><div><button class="btn ghost small" data-a="editplan" data-id="${p.id}">Bearbeiten</button></div></div>
   <div class="muted" style="margin-top:6px">${p.exercises.map(e=>e.main?`<span class="tag main">Main</span>${esc(e.name)} <span class="tiny">${stageLabel(e.state?.stage||0)} @ ${e.state?.weight||e.weight} kg</span>`:`<span class="tag">${(e.type||'')[0]||''}</span>${esc(e.name)} <span class="tiny">${e.sets}×${e.reps}</span>`).join('<br>')}</div></div>`).join('')||`<div class="empty">Noch keine Pläne. Lege z. B. Push, Pull, Legs an.</div>`}
   <button class="btn wide primary" data-a="editplan">+ Neuer Plan</button>
-  <h2>Daten</h2>
-  <div class="card">
+  <div class="row between" style="margin-top:18px"><span class="tiny">${SY.token?'Backup: '+syncText():'Kein Cloud-Backup – in den Einstellungen einrichten'}</span></div>`;
+}
+function settingsSheet(){
+  sheet(`<h3>Einstellungen</h3>
+  <div class="card" style="background:var(--bg3)">
     <div class="grid2"><div><label class="f">Pausenzeit (Sek.)</label><input type="number" inputmode="numeric" id="restIn" value="${S.settings.rest}"></div><div><label class="f">Overload-Schritt (kg)</label><input type="number" inputmode="decimal" step="0.5" id="ovIn" value="${S.settings.overload||2.5}"></div></div>
     <div class="tiny" style="margin-top:8px">Wenn du letztes Mal in allen Arbeitssätzen die Ziel-Reps geschafft hast, schlägt die App beim nächsten Start dieses Plus vor.</div>
   </div>
-  <h2>Cloud-Backup (GitHub)</h2>
-  <div class="card">
+  <div class="muted" style="margin:16px 0 8px">Cloud-Backup (GitHub)</div>
+  <div class="card" style="background:var(--bg3)">
     <div class="row between" style="margin-bottom:10px"><span id="syncStatus" class="muted">${syncText()}</span>${SY.token?`<button class="btn small" data-a="syncnow">Jetzt sichern</button>`:''}</div>
     <div class="field"><label class="f">Privates Repo (Nutzer/Name)</label><input id="syRepo" value="${esc(SY.repo)}" autocapitalize="off" autocorrect="off"></div>
     <div class="field"><label class="f">Token</label><input id="syTok" type="password" value="${esc(SY.token)}" placeholder="github_pat_…" autocapitalize="off" autocorrect="off"></div>
     <div class="grid2"><button class="btn primary" data-a="syncsave">Verbinden</button><button class="btn" data-a="syncpull" ${SY.token?'':'disabled style="opacity:.4"'}>Wiederherstellen</button></div>
     <div class="tiny" style="margin-top:8px">Sichert nach jeder Änderung automatisch eine data.json ins Repo. Beim Öffnen wird der neueste Stand geladen. Der Token bleibt nur auf diesem Gerät.</div>
   </div>
-  <h2>Manuelles Backup</h2>
-  <div class="card">
+  <div class="muted" style="margin:16px 0 8px">Export</div>
+  <div class="card" style="background:var(--bg3)">
     <div class="grid2"><button class="btn" data-a="export">Exportieren</button><button class="btn" data-a="import">Datei laden</button></div>
     <div class="grid2" style="margin-top:8px"><button class="btn" data-a="csvw">Training als CSV</button><button class="btn" data-a="csvm">Ernährung als CSV</button></div>
     <div class="tiny" style="margin-top:8px">CSV öffnet sich direkt in Excel/Numbers.</div>
   </div>
-  <h2>App</h2>
-  <div class="card"><div class="row between"><span class="muted">Version ${APP_VERSION}</span><button class="btn small" data-a="checkupd">Nach Update suchen</button></div><button class="btn ghost small" data-a="changelog" style="margin-top:8px">Was ist neu</button></div>`;
+  <div class="muted" style="margin:16px 0 8px">App</div>
+  <div class="card" style="background:var(--bg3)"><div class="row between"><span class="muted">Version ${APP_VERSION}</span><button class="btn small" data-a="checkupd">Nach Update suchen</button></div><button class="btn ghost small" data-a="changelog" style="margin-top:8px">Was ist neu</button></div>
+  <button class="btn wide" data-pa="close" style="margin-top:14px">Schließen</button>`);
+  const sh=document.querySelector('#sheet .in');
+  sh.oninput=ev=>{const t=ev.target;if(t.id==='restIn'){S.settings.rest=+t.value||90;save()}if(t.id==='ovIn'){S.settings.overload=+t.value||2.5;save()}};
+  sh.onclick=ev=>{if(ev.target.closest('[data-pa=close]')){closeSheet();render();return}const b=ev.target.closest('[data-a]');if(b)appAction(b)};
 }
 function planSheet(id){
   const p=id?clone(S.plans.find(x=>x.id===id)):{id:uid(),name:'',exercises:[]};
@@ -562,7 +569,8 @@ app.addEventListener('input',e=>{const t=e.target;
   if(t.id==='restIn'){S.settings.rest=+t.value||90;save()}
   if(t.id==='ovIn'){S.settings.overload=+t.value||2.5;save()}
 });
-app.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,d=b.dataset;
+app.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b)appAction(b)});
+function appAction(b){const a=b.dataset.a,d=b.dataset;
   if(a==='start')startWorkout(d.id);
   if(a==='cancel'&&confirm('Training verwerfen?')){S.active=null;stopTimer();save();render()}
   if(a==='finish')finishWorkout();
@@ -578,6 +586,7 @@ app.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)retu
   if(a==='rmex'){S.active.exercises.splice(+d.i,1);save();render()}
   if(a==='addex')prompt2('Übung',n=>{S.active.exercises.push({name:n,sets:[{w:0,r:0,done:false},{w:0,r:0,done:false},{w:0,r:0,done:false}]});save();render()},'z. B. Bankdrücken');
   if(a==='showw')summarySheet(d.id);
+  if(a==='settings')settingsSheet();
   if(a==='editplan')planSheet(d.id);
   if(a==='pex'){progEx=d.n;render()}
   if(a==='savew'){const v=+document.getElementById('wIn').value;if(!v)return;S.weights=S.weights.filter(x=>x.d!==today());S.weights.push({d:today(),w:v});save();toast('Gespeichert');render()}
@@ -593,7 +602,7 @@ app.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)retu
   if(a==='fnew')foodForm({});
   if(a==='fpick')amountSheet(S.foods.find(x=>x.id===d.id));
   if(a==='rmm'){S.macros[macroDay].splice(+d.i,1);save();render()}
-  if(a==='syncsave'){SY.repo=document.getElementById('syRepo').value.trim().replace(/^https?:\/\/github\.com\//,'').replace(/\/$/,'');SY.token=document.getElementById('syTok').value.trim();SY.sha=null;SY.state='off';saveSY();if(SY.token){toast('Verbinde…');pullSync().then(()=>{render();toast(SY.state==='ok'?'Cloud-Backup aktiv':'Verbindung fehlgeschlagen')})}else render()}
+  if(a==='syncsave'){SY.repo=document.getElementById('syRepo').value.trim().replace(/^https?:\/\/github\.com\//,'').replace(/\/$/,'');SY.token=document.getElementById('syTok').value.trim();SY.sha=null;SY.state='off';saveSY();if(SY.token){toast('Verbinde…');pullSync().then(()=>{settingsSheet();toast(SY.state==='ok'?'Cloud-Backup aktiv':'Verbindung fehlgeschlagen')})}else settingsSheet()}
   if(a==='syncnow')pushSync();
   if(a==='syncpull'&&confirm('Lokale Daten durch das Cloud-Backup ersetzen?'))pullSync(true);
   if(a==='csvw'){const rows=[['Datum','Plan','Übung','Satz','Aufwärmen','kg','Reps','e1RM']];S.workouts.forEach(w=>w.exercises.forEach(e=>e.sets.forEach((st,i)=>rows.push([w.date.slice(0,10),w.name,e.name,i+1,st.wu?'ja':'',st.w,st.r,st.wu?'':Math.round(e1rm(st.w,st.r))]))));dl('training-'+today()+'.csv',csv(rows),'text/csv')}
@@ -602,7 +611,7 @@ app.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)retu
   if(a==='changelog')changelogSheet();
   if(a==='export')dl('performance-backup-'+today()+'.json',JSON.stringify(S),'application/json');
   if(a==='import'){const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=()=>{const r=new FileReader();r.onload=()=>{try{S=Object.assign({},def,JSON.parse(r.result));save();toast('Backup geladen');render()}catch(e){toast('Ungültige Datei')}};r.readAsText(i.files[0])};i.click()}
-});
+}
 window.addEventListener('resize',()=>{if(tab==='progress')drawProgress();if(tab==='body')drawWeight()});
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
 function dl(name,content,type){const bl=new Blob([type.includes('csv')?'\ufeff'+content:content],{type}),u=URL.createObjectURL(bl),l=document.createElement('a');l.href=u;l.download=name;document.body.appendChild(l);l.click();setTimeout(()=>{l.remove();URL.revokeObjectURL(u)},2000)}
@@ -618,7 +627,7 @@ document.getElementById('upd').onclick=async()=>{try{if(navigator.serviceWorker)
 function changelogSheet(){const info=latestInfo&&latestInfo.version===APP_VERSION?latestInfo:null;
   sheet(`<h3>Was ist neu</h3>${(info?info.changes:CHANGES).map(c=>`<div class="item"><span class="tiny" style="min-width:36px">v${c.v}</span><span>${c.t.map(esc).join('<br>')}</span></div>`).join('')}<button class="btn wide" data-pa="close" style="margin-top:12px">OK</button>`);
   document.querySelector('#sheet .in').onclick=ev=>{if(ev.target.closest('[data-pa=close]'))closeSheet()}}
-const CHANGES=[{v:'6',t:['Main-Übung mit 3-5-7-System (10×3 → 7×5 → 5×7 → +Schritt)','Übungen als Freihand / Maschine / Kabelturm markiert']},{v:'5',t:['Overload-Vorschlag beim Start (Ziel-Reps geschafft → +2,5 kg)','Wochenübersicht und "zuletzt vor X Tagen" pro Plan','Notizen pro Übung, Aufwärmsätze','Mahlzeiten mit einem Tipp buchen','Ziele für Trainings- und Ruhetag, 7-Tage-Schnitt mit Gewichtstrend','Körpermaße, geglätteter Gewichtstrend','Update-Hinweis, CSV-Export']},{v:'4',t:['Makros: Barcode-Scanner, Open Food Facts, Mengenrechner']},{v:'3',t:['Automatisches Cloud-Backup (GitHub)']},{v:'2',t:['Letztes Training als Vorlage, Kraftvergleich nach dem Training']},{v:'1',t:['Erste Version']}];
+const CHANGES=[{v:'7',t:['Einstellungen ins Zahnrad-Menü verschoben']},{v:'6',t:['Main-Übung mit 3-5-7-System (10×3 → 7×5 → 5×7 → +Schritt)','Übungen als Freihand / Maschine / Kabelturm markiert']},{v:'5',t:['Overload-Vorschlag beim Start (Ziel-Reps geschafft → +2,5 kg)','Wochenübersicht und "zuletzt vor X Tagen" pro Plan','Notizen pro Übung, Aufwärmsätze','Mahlzeiten mit einem Tipp buchen','Ziele für Trainings- und Ruhetag, 7-Tage-Schnitt mit Gewichtstrend','Körpermaße, geglätteter Gewichtstrend','Update-Hinweis, CSV-Export']},{v:'4',t:['Makros: Barcode-Scanner, Open Food Facts, Mengenrechner']},{v:'3',t:['Automatisches Cloud-Backup (GitHub)']},{v:'2',t:['Letztes Training als Vorlage, Kraftvergleich nach dem Training']},{v:'1',t:['Erste Version']}];
 if(localStorage.getItem('perf.seen')!==APP_VERSION){localStorage.setItem('perf.seen',APP_VERSION);if(localStorage.getItem(KEY))setTimeout(changelogSheet,600)}
 render();pullSync();checkUpdate();
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
