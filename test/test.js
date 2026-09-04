@@ -37,8 +37,15 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
 
 (async()=>{
   await import(path.join(root,'js/app.js'));await sleep(80);
+  // Dashboard
+  check('Start-Tab Heute',d.querySelector('nav button.on').dataset.tab==='today');
+  click('[data-a=supps]');click('[data-x=preset]');check('Standard-Stack',store().supps.length===4);click('[data-x=close]');
+  check('Tagesplan-Abschnitte',d.querySelectorAll('.tick').length===5);
+  const before=d.querySelectorAll('.tick.done').length;click('.card .list [data-a=tick]:not([data-act=weight])');
+  check('Abhaken speichert',Object.keys(store().checks).length===1&&d.querySelectorAll('.tick.done').length===before+1);
+  click('[data-tab=plans]');
   // Sync verbinden
-  click('[data-tab=plans]');click('[data-a=settings]');inp(d.getElementById('syTok'),'tok');click('[data-x=connect]');await sleep(100);
+  click('[data-a=settings]');inp(d.getElementById('syTok'),'tok');click('[data-x=connect]');await sleep(100);
   check('Sync verbunden',/Gesichert/.test(d.getElementById('syncStatus').textContent));click('[data-x=close]');
   // Plan: Main Bank 100kg, Flys Kabelturm
   click('[data-a=edit]');click('[data-x=add]');click('[data-x=add]');inp(d.getElementById('pn'),'Push');

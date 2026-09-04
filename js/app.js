@@ -3,13 +3,14 @@ import {registerView,render,rerender,sheet,closeSheet,toast,el,currentTab,setTab
 import './timer.js';
 import {pullSync} from './sync.js';
 import * as photos from './photos.js';
+import todayView from './views/today.js';
 import training from './views/training.js';
 import plans from './views/plans.js';
 import progress from './views/progress.js';
 import body from './views/body.js';
 import macros from './views/macros.js';
 
-registerView('log',training);registerView('plans',plans);registerView('progress',progress);registerView('body',body);registerView('macros',macros);
+registerView('today',todayView);registerView('log',training);registerView('plans',plans);registerView('progress',progress);registerView('body',body);registerView('macros',macros);
 
 // ----- Update-Check & Changelog -----
 let latest=null;
@@ -24,6 +25,7 @@ el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
   try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
   location.reload()};
 export const CHANGES=[
+ {v:'23',t:['Neuer Start-Tab "Heute": Kennzahlen, fälliges Training und Tagesplan zum Abhaken','Supplements anlegen (Name, Dosis, Zeitpunkt, Rhythmus)']},
  {v:'22',t:['Makros-Tab in klare Abschnitte gegliedert, farbige Balken je Makro']},
  {v:'21',t:['Übungen im Plan per ≡ verschieben']},
  {v:'20',t:['Zeitraum-Filter auch beim Gewicht; überall Standard 3 Monate']},

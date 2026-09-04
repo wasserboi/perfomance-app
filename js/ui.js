@@ -30,7 +30,7 @@ export function dl(name,content,type){const bl=new Blob([type.includes('csv')?'\
 export const csv=rows=>rows.map(r=>r.map(v=>{v=String(v??'');return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(';')).join('\n');
 
 // ----- Tabs & rendering -----
-const views={};let tab='log';
+const views={};let tab='today';
 export function registerView(name,view){views[name]=view}
 export function currentTab(){return tab}
 export function setTab(name){tab=name;render(true)}

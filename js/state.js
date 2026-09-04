@@ -1,5 +1,5 @@
 // ===== Konstanten =====
-export const APP_VERSION='22';
+export const APP_VERSION='23';
 export const KEY='perf.v1';
 export const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];
 export const TYPES=['Freihand','Maschine','Kabelturm'];
@@ -7,7 +7,7 @@ export const MEAS=[['waist','Bauch'],['chest','Brust'],['armL','Arm links'],['ar
 export const stageLabel=st=>STAGES[st].sets+'×'+STAGES[st].reps;
 
 const def={plans:[],workouts:[],weights:[],macros:{},foods:[],meals:[],measures:[],exNotes:{},dayType:{},
-  goals:{p:180,c:250,f:80},goalsRest:null,goalMode:'hold',water:{},photosDeleted:[],settings:{rest:90,overload:2.5},active:null};
+  goals:{p:180,c:250,f:80},goalsRest:null,goalMode:'hold',water:{},photosDeleted:[],supps:[],checks:{},waterGoal:3000,settings:{rest:90,overload:2.5},active:null};
 
 // ===== State =====
 export const clone=o=>JSON.parse(JSON.stringify(o));
@@ -110,6 +110,11 @@ export function finishWorkout(){
 export const fkcal=f=>f.kcal||Math.round(f.p*4+f.c*4+f.f*9);
 export const kcalOf=o=>o.kcal||Math.round(o.p*4+o.c*4+o.f*9);
 export function dayIsTrain(d){if(S.dayType[d]!==undefined)return S.dayType[d];return S.workouts.some(w=>w.date.slice(0,10)===d)||(S.active&&d===today())}
+export const SLOTS=[['morning','Morgens'],['noon','Mittags'],['evening','Abends'],['night','Vor dem Schlafen']];
+export const slotLabel=k=>(SLOTS.find(s=>s[0]===k)||[,''])[1];
+export function suppDue(sp,d){if(sp.paused)return false;if(!sp.days||sp.days==='daily')return true;const wd=['SU','MO','TU','WE','TH','FR','SA'][new Date(d+'T12:00').getDay()];return sp.days.includes(wd)}
+export function isChecked(d,id){return !!(S.checks[d]||{})[id]}
+export function setCheck(d,id,v){const c=S.checks[d]=S.checks[d]||{};if(v)c[id]=true;else delete c[id];if(!Object.keys(c).length)delete S.checks[d];save()}
 export const MIN=['mg','ca','na'];// Magnesium, Calcium, Natrium in mg pro 100 ml/g
 export function bookFood(day,f,amt,asWater){const i=S.foods.findIndex(x=>x.id===f.id);f.used=Date.now();i<0?S.foods.push(f):S.foods[i]=f;
   const e={n:f.name,foodId:f.id,amount:amt,unit:f.unit||'g',p:r1(f.p*amt/100),c:r1(f.c*amt/100),f:r1(f.f*amt/100),kcal:Math.round(fkcal(f)*amt/100)};
