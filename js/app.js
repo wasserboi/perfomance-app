@@ -25,6 +25,7 @@ el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
   try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
   location.reload()};
 export const CHANGES=[
+ {v:'31',t:['Höhe der App korrigiert – Leiste sitzt am Rand']},
  {v:'30',t:['Tab-Leiste sitzt jetzt bündig am unteren Rand']},
  {v:'29',t:['Tab-Leiste bleibt beim Scrollen fest unten']},
  {v:'28',t:['Training aufgeräumt: Fortschrittsbalken, Sätze in eigenem Block, Optionen im ···-Menü']},
