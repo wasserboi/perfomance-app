@@ -35,13 +35,13 @@ export function registerView(name,view){views[name]=view}
 export function currentTab(){return tab}
 export function setTab(name){tab=name;render(true)}
 export function render(top=false){
-  const y=window.scrollY;
+  const app0=el('app'),y=app0?app0.scrollTop:0;
   $$('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
   const app=el('app');const v=views[tab];app.innerHTML=v.html();if(v.after)v.after(app);
   app.onclick=e=>{const b=e.target.closest('[data-a]');if(b&&v.action)v.action(b.dataset.a,b.dataset,b,e)};
   app.oninput=e=>{if(v.input)v.input(e.target,e)};
   app.onchange=e=>{if(v.change)v.change(e.target,e)};
-  window.scrollTo(0,top?0:y);
+  app.scrollTop=top?0:y;
 }
 export function rerender(){render(false)}
 $('nav').onclick=e=>{const b=e.target.closest('button');if(b)setTab(b.dataset.tab)};

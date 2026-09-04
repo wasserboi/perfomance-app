@@ -9,8 +9,8 @@
   --pad:16px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%}
-body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;font-size:var(--f3);line-height:1.4;overscroll-behavior:none;-webkit-font-smoothing:antialiased}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;font-size:var(--f3);line-height:1.4;-webkit-font-smoothing:antialiased;position:fixed;inset:0;width:100%}
 button,input,select{font:inherit;color:inherit}
 button{background:none;border:none;cursor:pointer}
 a{color:inherit;text-decoration:none}
@@ -34,7 +34,7 @@ h3{font-size:var(--f4);font-weight:700;margin-bottom:var(--s3)}
 .right{text-align:right}
 
 /* ===== Layout ===== */
-#app{padding:calc(env(safe-area-inset-top) + 14px) var(--pad) 110px}
+#app{position:absolute;top:0;left:0;right:0;bottom:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:calc(env(safe-area-inset-top) + 14px) var(--pad) calc(env(safe-area-inset-bottom) + 110px)}
 .row{display:flex;align-items:center;gap:var(--s2)}
 .row.between{justify-content:space-between}
 .row.top{align-items:flex-start}
