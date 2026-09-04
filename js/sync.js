@@ -16,7 +16,7 @@ function splitData(){S.deviceId=SY.device;const cut=new Date(Date.now()-HIST_DAY
 async function hash(str){const b=await crypto.subtle.digest('SHA-1',new TextEncoder().encode(str));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 let syncT=null;
 export function scheduleSync(){if(!SY.token)return;SY.pending=true;saveSY();clearTimeout(syncT);syncT=setTimeout(pushSync,3000);setStatus('Änderungen werden gesichert…')}
-async function tree(){const ref=await gh('/git/ref/heads/main');if(!ref)return null;const c=await gh('/git/commits/'+ref.object.sha);const t=await gh('/git/trees/'+c.tree.sha);const files={};t.tree.forEach(e=>{if(e.type==='blob')files[e.path]=e.sha});return{commit:ref.object.sha,tree:c.tree.sha,files}}
+async function tree(){const ref=await gh('/git/ref/heads/main');if(!ref)return null;const c=await gh('/git/commits/'+ref.object.sha);const t=await gh('/git/trees/'+c.tree.sha+'?recursive=1');const files={};t.tree.forEach(e=>{if(e.type==='blob')files[e.path]=e.sha});return{commit:ref.object.sha,tree:c.tree.sha,truncated:!!t.truncated,files}}
 export async function blob(sha){const b=await gh('/git/blobs/'+sha);return b64d(b.content)}
 async function getAll(){const t=await tree();if(!t||!t.files['data.json'])return null;
   const data=JSON.parse(await blob(t.files['data.json']));const hist=t.files['history.json']?JSON.parse(await blob(t.files['history.json'])):[];
@@ -35,17 +35,20 @@ export async function pushSync(force){
     }
     SY.conflict=null;
     const parts=splitData();const entries=[];let changed=false;
-    const ptree=await photos.pushBlobs(t);if(ptree.length){entries.push(...ptree);changed=true}
+    // Vorläufige Änderungen erst NACH bestätigtem Commit übernehmen — sonst gilt bei einem Abbruch
+    // mitten im Sync fälschlich schon als "gesichert", was diesen Inhalt beim nächsten Versuch überspringen würde.
+    const pendingShas={},pendingSynced=[];let pendingSnapDay=null;
+    const ptree=await photos.pushBlobs(t,pendingSynced);if(ptree.length){entries.push(...ptree);changed=true}
     for(const [name,content] of [['data.json',parts.data],['history.json',parts.history]]){
       const h=await hash(content);if(t&&t.files[name]&&SY.shas[name]===h)continue;
       const b=await gh('/git/blobs',{method:'POST',body:JSON.stringify({content:b64e(content),encoding:'base64'})});
-      entries.push({path:name,mode:'100644',type:'blob',sha:b.sha});SY.shas[name]=h;changed=true;
+      entries.push({path:name,mode:'100644',type:'blob',sha:b.sha});pendingShas[name]=h;changed=true;
     }
     // Monats-Snapshot: einmal pro Monat eine unveränderliche Kopie
     // Laufender Monat wird höchstens einmal täglich aktualisiert; vergangene Monate bleiben unverändert.
     const day=new Date().toISOString().slice(0,10),mon=day.slice(0,7),snapPath='snapshots/'+mon+'.json';
     if(changed&&(!t||!t.files[snapPath]||SY.snapDay!==day)){
-      SY.snapDay=day;
+      pendingSnapDay=day;
       const b=await gh('/git/blobs',{method:'POST',body:JSON.stringify({content:b64e(JSON.stringify(S)),encoding:'base64'})});
       entries.push({path:snapPath,mode:'100644',type:'blob',sha:b.sha});
     }
@@ -53,6 +56,10 @@ export async function pushSync(force){
       const nt=await gh('/git/trees',{method:'POST',body:JSON.stringify({base_tree:t?t.tree:undefined,tree:entries})});
       const c=await gh('/git/commits',{method:'POST',body:JSON.stringify({message:'Backup '+new Date().toLocaleString('de-DE'),tree:nt.sha,parents:t?[t.commit]:[]})});
       if(t)await gh('/git/refs/heads/main',{method:'PATCH',body:JSON.stringify({sha:c.sha})});else await gh('/git/refs',{method:'POST',body:JSON.stringify({ref:'refs/heads/main',sha:c.sha})});
+      // Erst jetzt, nach bestätigtem Branch-Update, als synchronisiert übernehmen.
+      Object.assign(SY.shas,pendingShas);
+      pendingSynced.forEach(p=>{p.synced=true});
+      if(pendingSnapDay)SY.snapDay=pendingSnapDay;
     }
     SY.last=Date.now();SY.pending=false;SY.state='ok';saveSY();setStatus();
   }catch(e){SY.state='err:'+e.message;saveSY();setStatus()}
@@ -64,7 +71,7 @@ export async function pullSync(force){
     photos.mergeRemote(g.files);
     const bad=validate(g.data);if(bad){SY.state='err:'+bad;saveSY();setStatus();return}
     if(force||(g.data.updatedAt||0)>(S.updatedAt||0)){
-      if(force)await safetyBackup();
+      await safetyBackup(); // immer sichern, auch beim automatischen "Gegenseite ist neuer"-Abgleich
       replaceState(g.data);rebuildBestsFull();save();const p=splitData();SY.shas={'data.json':await hash(p.data),'history.json':await hash(p.history)};SY.state='ok';SY.last=Date.now();SY.pending=false;saveSY();if(force)toast('Backup wiederhergestellt')}
     else if(SY.pending||(S.updatedAt||0)>(g.data.updatedAt||0))await pushSync();
     else{SY.state='ok';saveSY()}
@@ -76,7 +83,7 @@ export async function listSnapshots(){const t=await tree();if(!t)return[];
 export async function restoreSnapshot(sha){const d=JSON.parse(await blob(sha));const bad=validate(d);if(bad)throw new Error(bad);
   await safetyBackup();replaceState(d);rebuildBestsFull();save();SY.shas={};saveSY();await pushSync(true);return true}
 /* Automatischer Sicherungsstand direkt vor dem Ersetzen der lokalen Daten, damit ein Fehlklick nichts endgültig kostet */
-async function safetyBackup(){try{const {kvSet}=await import('./store.js');await kvSet('perf.v1.safety',{at:Date.now(),data:JSON.parse(JSON.stringify(S))})}catch(e){}}
+export async function safetyBackup(){try{const {kvSet}=await import('./store.js');await kvSet('perf.v1.safety',{at:Date.now(),data:JSON.parse(JSON.stringify(S))})}catch(e){}}
 export async function lastSafetyBackup(){try{const {kvGet}=await import('./store.js');return await kvGet('perf.v1.safety')}catch(e){return null}}
 export function syncText(){
   if(!SY.token)return'Kein Cloud-Backup eingerichtet';

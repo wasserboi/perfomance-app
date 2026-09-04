@@ -1,6 +1,6 @@
 import {S,save,clone,uid,esc,TYPES,stageLabel,APP_VERSION,today,e1rm,renameExercise,replaceState} from '../state.js';
 import {sheet,closeSheet,toast,confirm2,rerender,dl,csv,el} from '../ui.js';
-import {SY,syncText,connect,pushSync,pullSync,listSnapshots,restoreSnapshot,lastSafetyBackup} from '../sync.js';
+import {SY,syncText,connect,pushSync,pullSync,listSnapshots,restoreSnapshot,lastSafetyBackup,safetyBackup} from '../sync.js';
 import {checkUpdate,changelogSheet} from '../app.js';
 
 const gear='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>';
@@ -74,7 +74,7 @@ export function settingsSheet(){
     }catch(e){toast('Historie nicht abrufbar')}},restore:()=>{if(confirm2('Lokale Daten durch das Cloud-Backup ersetzen?'))pullSync(true).then(()=>{settingsSheet();rerender()})},
     exmgr:()=>exMgrSheet(),
     export:()=>dl('performance-backup-'+today()+'.json',JSON.stringify(S),'application/json'),
-    import:()=>{const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=()=>{const r=new FileReader();r.onload=()=>{try{replaceState(JSON.parse(r.result));save();toast('Backup geladen');closeSheet();rerender()}catch(e){toast('Ungültige Datei')}};r.readAsText(i.files[0])};i.click()},
+    import:()=>{const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=()=>{const r=new FileReader();r.onload=async()=>{try{const d=JSON.parse(r.result);await safetyBackup();replaceState(d);save();toast('Backup geladen');closeSheet();rerender()}catch(e){toast('Ungültige Datei')}};r.readAsText(i.files[0])};i.click()},
     csvw:()=>{const rows=[['Datum','Plan','Übung','Satz','Aufwärmen','kg','Reps','e1RM']];S.workouts.forEach(w=>w.exercises.forEach(e=>e.sets.forEach((st,i)=>rows.push([w.date.slice(0,10),w.name,e.name,i+1,st.wu?'ja':'',st.w,st.r,st.wu?'':Math.round(e1rm(st.w,st.r))]))));dl('training-'+today()+'.csv',csv(rows),'text/csv')},
     csvm:()=>{const rows=[['Datum','Produkt','Menge','Einheit','Protein','Carbs','Fett','kcal']];Object.keys(S.macros).sort().forEach(dd=>S.macros[dd].forEach(i=>rows.push([dd,i.n,i.amount||'',i.unit||'',i.p,i.c,i.f,i.kcal||Math.round(i.p*4+i.c*4+i.f*9)])));dl('ernaehrung-'+today()+'.csv',csv(rows),'text/csv')},
     upd:()=>checkUpdate(true),changelog:changelogSheet});

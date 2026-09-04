@@ -14,7 +14,13 @@ w.fetch=async(url,o={})=>{const ok=j=>({ok:true,status:200,json:async()=>j});
   const p=url.replace(/^.*\/repos\/[^/]+\/[^/]+/,'');const body=o.body?JSON.parse(o.body):null;
   if(p==='/git/ref/heads/main')return repo.ref?ok({object:{sha:repo.ref}}):{status:404,ok:false};
   if(p.startsWith('/git/commits/'))return ok(repo.commits[p.split('/')[3]]);
-  if(p.startsWith('/git/trees/'))return ok(repo.trees[p.split('/')[3]]);
+  if(p.startsWith('/git/trees/')){
+    const [shaPart,q]=p.slice('/git/trees/'.length).split('?');const full=repo.trees[shaPart];if(!full)return{status:404,ok:false};
+    if(q&&q.includes('recursive=1'))return ok(full);
+    // Echtes GitHub-Verhalten ohne recursive=1: nur die Wurzelebene, Unterordner als type:'tree' zusammengefasst
+    const top={};full.tree.forEach(e=>{const i=e.path.indexOf('/');if(i<0)top[e.path]=e;else{const dir=e.path.slice(0,i);if(!top[dir]||top[dir].type!=='tree')top[dir]={path:dir,type:'tree',sha:'dir-'+dir}}});
+    return ok({tree:Object.values(top)});
+  }
   if(p.startsWith('/git/blobs/'))return ok({content:repo.blobs[p.split('/')[3]]});
   if(p==='/git/blobs'){blobPosts++;const s=sha();repo.blobs[s]=body.content;return ok({sha:s})}
   if(p==='/git/trees'){const base=body.base_tree?repo.trees[body.base_tree].tree:[];const map={};base.forEach(e=>map[e.path]=e);body.tree.forEach(e=>{if(e.sha===null)delete map[e.path];else map[e.path]=e});const s=sha();repo.trees[s]={tree:Object.values(map)};return ok({sha:s})}
@@ -137,6 +143,54 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
     click('[data-tab=plans]');click('[data-a=settings]');click('[data-x=undo]');await sleep(50);
     check('Rückgängig stellt vorherigen Stand wieder her',store().plans.length===before);
     click('[data-x=close]');
+  }
+  // Bugfixes: verifizieren, dass die drei gemeldeten Backup-Fehler wirklich behoben sind
+  {
+    const {photoPut}=await import(path.join(root,'js/store.js'));
+    // Foto-Datensatz direkt in die IndexedDB legen (compress() braucht ein echtes Bild, das hat jsdom nicht)
+    await photoPut({id:'2026-09-01_test',d:'2026-09-01',data:'/9j/testdata',synced:false});
+    const photos=await import(path.join(root,'js/photos.js'));await photos.loadMeta();
+    const s=await import(path.join(root,'js/sync.js'));
+    await s.pushSync(true);await sleep(50);
+    const files=repo.trees[repo.commits[repo.ref].tree.sha].tree.map(e=>e.path);
+    check('Foto liegt im Repo unter photos/…',files.some(f=>f.startsWith('photos/2026-09-01_test')),files.join(','));
+    // (1) Nicht-rekursiver Abruf würde das Foto verstecken — mit dem Fix muss es über die normale tree()-Funktion auffindbar sein
+    check('Rekursiver Tree-Abruf findet verschachtelte Dateien',files.length>=3,'files='+files.join(','));
+  }
+  {
+    // (2) Bricht der Sync nach dem Blob-Upload aber vor dem Ref-Update ab, darf nichts fälschlich als "gesichert" markiert werden
+    const s=await import(path.join(root,'js/sync.js'));
+    const st=await import(path.join(root,'js/state.js'));
+    const realFetch=global.fetch;
+    global.fetch=w.fetch=async(url,o={})=>{if(o&&o.body&&/refs\/heads\/main/.test(url))throw new Error('Netzwerkabbruch (simuliert)');return realFetch(url,o)};
+    const before=JSON.stringify(s.SY.shas);
+    st.S.settings.rest=77;st.save();await sleep(400);
+    await s.pushSync(true);
+    global.fetch=w.fetch=realFetch;
+    check('Nach abgebrochenem Sync bleibt Stand als nicht gesichert markiert',s.SY.state.startsWith('err'),s.SY.state);
+    check('shas werden bei Abbruch nicht überschrieben (kein OR-Fallback)',JSON.stringify(s.SY.shas)===before,'before='+before+' after='+JSON.stringify(s.SY.shas));
+    await s.pushSync(true);check('Erneuter Versuch nach Fehler sichert wieder erfolgreich',s.SY.state==='ok',s.SY.state);
+  }
+  {
+    // (3) Sicherungsstand auch beim automatischen Geräteabgleich und beim manuellen Datei-Import
+    const st=await import(path.join(root,'js/state.js'));
+    const s=await import(path.join(root,'js/sync.js'));
+    await s.kvDel?.('x'); // no-op guard falls Export fehlt
+    const before=await s.lastSafetyBackup();
+    // Automatischer Abgleich: Remote ist neuer als lokal, deviceId weicht ab -> gilt nicht als eigener Push
+    const remote=JSON.parse(JSON.stringify(store()));remote.updatedAt=Date.now()+99999;remote.deviceId='anderes-geraet';remote.plans=[];
+    const parts=(()=>{return JSON.stringify(remote)})();
+    const dsha=sha();repo.blobs[dsha]=Buffer.from(parts).toString('base64');
+    const t=repo.trees[repo.commits[repo.ref].tree.sha];
+    const nmap={};t.tree.forEach(e=>nmap[e.path]=e);nmap['data.json']={path:'data.json',type:'blob',sha:dsha};
+    const ns=sha();repo.trees[ns]={tree:Object.values(nmap)};
+    const nc=sha();repo.commits[nc]={tree:{sha:ns}};repo.ref=nc;
+    await s.pullSync(false);await sleep(50);
+    const after=await s.lastSafetyBackup();
+    check('Sicherungsstand entsteht auch beim automatischen Abgleich',!!after&&(!before||after.at>=before.at));
+    check('Automatischer Abgleich hat tatsächlich ersetzt',store().plans.length===0);
+    // Undo, um restlichen Testlauf nicht zu stören
+    click('[data-tab=plans]');click('[data-a=settings]');click('[data-x=undo]');await sleep(50);click('[data-x=close]');
   }
   check('Keine JS-Fehler',errs.length===0,errs.join(' | '));
   console.log(fails?`\n${fails} Test(s) fehlgeschlagen`:'\nAlle Tests bestanden');process.exit(fails?1:0);

@@ -25,6 +25,7 @@ el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
   try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
   location.reload()};
 export const CHANGES=[
+ {v:'35',t:['Backup-Fehler behoben: Fotos/Snapshots werden beim Lesen jetzt vollständig gefunden (rekursiver Abruf)','Sync markiert Inhalte erst nach bestätigtem Commit als gesichert, nicht schon beim Hochladen','Automatischer Sicherungsstand jetzt vor jeder Ersetzung lokaler Daten, auch beim Import und beim Geräteabgleich']},
  {v:'34',t:['Speicherung aufgeteilt: Training und übrige Daten getrennt, spürbar weniger Schreibarbeit','Bestwerte je Übung als Index statt komplettem Neudurchsuchen bei jedem Satz','Automatischer Sicherungsstand vor jedem Wiederherstellen, rückgängig machbar']},
  {v:'33',t:['Daten liegen jetzt in der IndexedDB (kein 5-MB-Limit mehr), localStorage bleibt Notfallkopie','Schema-Versionierung mit Migrationen','Monats-Snapshots im Backup + Wiederherstellen aus der Historie','Prüfung beim Wiederherstellen, Konflikt-Erkennung bei zwei Geräten','Monatliche Erinnerung an ein lokales Backup']},
  {v:'32',t:['Höhe wird jetzt live gemessen – Tab-Leiste sitzt korrekt am unteren Rand']},

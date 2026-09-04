@@ -1,6 +1,6 @@
 import {kvGet,kvSet,mirror,readMirror} from './store.js';
 // ===== Konstanten =====
-export const APP_VERSION='34';
+export const APP_VERSION='35';
 export const SCHEMA=3;
 export const KEY='perf.v1';
 export const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];
