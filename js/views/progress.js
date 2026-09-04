@@ -2,7 +2,7 @@ import {S,esc,fmtD,exHistory,allExercises,recentExercises,work} from '../state.j
 import {rerender} from '../ui.js';
 import {lineChart} from '../charts.js';
 
-let ex=null,range='1y';
+let ex=null,range='3m';
 const filt=h=>{if(range==='all')return h;const cut=new Date(Date.now()-(range==='3m'?90:365)*864e5).toISOString();const f=h.filter(x=>x.d>=cut);return f.length>1?f:h.slice(-2)};
 function heaviest(name){let m={w:0,r:0};S.workouts.forEach(x=>{const h=x.exercises.find(y=>y.name===name);if(h)work(h).forEach(t=>{if(t.w>m.w)m=t})});return m}
 

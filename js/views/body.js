@@ -4,6 +4,9 @@ import {lineChart} from '../charts.js';
 import {startTimer} from '../timer.js';
 import * as photos from '../photos.js';
 
+let range='3m';
+const RANGES=[['3m','3M'],['1y','1J'],['all','Alles']];
+function inRange(ws){if(range==='all')return ws;const cut=new Date(Date.now()-(range==='3m'?90:365)*864e5).toISOString().slice(0,10);const f=ws.filter(x=>x.d>=cut);return f.length>1?f:ws.slice(-2)}
 function html(){
   const ws=[...S.weights].sort((a,b)=>a.d<b.d?-1:1),last=ws[ws.length-1],wk=ws.filter(x=>x.d>=new Date(Date.now()-7*864e5).toISOString().slice(0,10));
   const avg=wk.length?wk.reduce((a,x)=>a+x.w,0)/wk.length:null;
@@ -16,7 +19,7 @@ function html(){
     <div class="card"><div class="tiny">Aktuell</div><div class="big num">${last?last.w.toFixed(1):'–'}<span class="tiny"> kg</span></div><div class="tiny">${last?fmtD(last.d):''}</div></div>
     <div class="card"><div class="tiny">Ø 7 Tage</div><div class="big num">${avg?avg.toFixed(1):'–'}<span class="tiny"> kg</span></div><div class="tiny">${wk.length} ${wk.length===1?'Eintrag':'Einträge'}</div></div>
   </div>
-  <div class="card"><div class="row between mb2"><span class="muted">Gewicht</span><span class="tiny"><span style="color:var(--accent2)">■</span> Trend&nbsp; <span style="color:var(--ink3)">●</span> Tageswerte</span></div><canvas id="c2"></canvas></div>
+  <div class="card"><div class="row between mb2"><span class="muted">Gewicht</span><span>${RANGES.map(([k,l])=>`<button class="chip ${range===k?'on':''}" data-a="range" data-r="${k}" style="margin:0 0 0 4px">${l}</button>`).join('')}</span></div><canvas id="c2"></canvas><div class="tiny right"><span style="color:var(--accent2)">■</span> Trend&nbsp;&nbsp;<span style="color:var(--ink3)">●</span> Tageswerte</div></div>
   <h2>Maße</h2>
   <div class="card">
     <div class="grid2">${f('waist','Bauch')}${f('chest','Brust')}</div><div class="grid2 mt2">${f('armL','Arm links')}${f('armR','Arm rechts')}</div><div class="grid2 mt2">${f('thighL','Bein links')}${f('thighR','Bein rechts')}</div>
@@ -31,11 +34,12 @@ function html(){
   ${ws.length?`<h2>Einträge</h2><div class="card list">${ws.slice(-10).reverse().map(x=>`<div class="item"><span class="muted">${fmtD(x.d)}</span><span class="row"><span class="num">${x.w.toFixed(1)} kg</span><button class="btn ghost sm" data-a="rmw" data-d="${x.d}">✕</button></span></div>`).join('')}</div>`:''}`;
 }
 export default{html,
-  after(){const ws=[...S.weights].sort((a,b)=>a.d<b.d?-1:1).slice(-60);lineChart(document.getElementById('c2'),trend(ws),ws.map(x=>({d:x.d,y:x.w})),' kg');photos.loadMeta().then(photos.renderGrid)},
+  after(){const ws=inRange([...S.weights].sort((a,b)=>a.d<b.d?-1:1));lineChart(document.getElementById('c2'),trend(ws),ws.map(x=>({d:x.d,y:x.w})),' kg');photos.loadMeta().then(photos.renderGrid)},
   action(a,d){
     if(a==='savew'){const v=+el('wIn').value;if(!v)return;S.weights=S.weights.filter(x=>x.d!==today());S.weights.push({d:today(),w:v});save();toast('Gespeichert');rerender()}
     if(a==='rmw'){S.weights=S.weights.filter(x=>x.d!==d.d);save();rerender()}
     if(a==='savem'){const e={d:today()};MEAS.map(x=>x[0]).forEach(k=>{const v=+el('ms_'+k).value;if(v)e[k]=v});if(Object.keys(e).length<2)return;S.measures=S.measures.filter(x=>x.d!==today());S.measures.push(e);save();toast('Gespeichert');rerender()}
+    if(a==='range'){range=d.r;rerender()}
     if(a==='timer')startTimer(+d.s);
     if(a==='pview')photos.view(d.id);if(a==='pall')photos.viewAll();
   },

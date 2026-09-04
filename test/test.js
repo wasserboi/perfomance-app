@@ -58,9 +58,10 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
   check('Kalender/Streak',/1 Woche in Folge/.test(d.querySelector('.cal+div').textContent));
   // Fortschritt
   click('[data-tab=progress]');check('Fortschritt Dropdown',d.getElementById('pexSel').options.length===2);
-  click('[data-a=range][data-r=all]');check('Range wechselt',d.querySelector('[data-a=range].on').dataset.r==='all');
+  check('Fortschritt Standard 3M',d.querySelector('[data-a=range].on').dataset.r==='3m');click('[data-a=range][data-r=all]');check('Range wechselt',d.querySelector('[data-a=range].on').dataset.r==='all');
   // Körper
   click('[data-tab=body]');inp(d.getElementById('wIn'),90);click('[data-a=savew]');inp(d.getElementById('ms_armL'),40);inp(d.getElementById('ms_armR'),41);click('[data-a=savem]');
+  check('Gewicht-Zeitraum 3M Standard',d.querySelector('[data-a=range].on').dataset.r==='3m');
   check('Gewicht + Maße',store().weights.length===1&&store().measures[0].armR===41);
   click('[data-a=timer]');check('Timer läuft',d.getElementById('timer').classList.contains('on'));
   // Makros
