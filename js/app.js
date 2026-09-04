@@ -24,6 +24,7 @@ el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
   try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
   location.reload()};
 export const CHANGES=[
+ {v:'18',t:['Kein Update-Popup mehr, nur kurzer Hinweis']},
  {v:'17',t:['Menge: Portion wählen + Anzahl mit −/+, oder Gramm-Modus']},
  {v:'16',t:['Standardportionen: 1 Ei, Scheibe Brot, Scoop Whey, EL Öl … als Chips; eigene Portion pro Produkt']},
  {v:'15',t:['Updates laden jetzt automatisch beim Öffnen; Update-Balken zeigt Fortschritt']},
@@ -32,7 +33,7 @@ export const CHANGES=[
  {v:'12',t:['Diagramme neu, Fotos in der App']},{v:'11',t:['Backup ohne Limit, Übungsverwaltung, Deload, Kalender, Timer-Fix, Autopilot, Wasser']},
  {v:'10',t:['Maße links/rechts']},{v:'9',t:['Layout aufgeräumt']},{v:'8',t:['PRs, Gesamtvolumen']},{v:'7',t:['Einstellungen im Zahnrad']},{v:'6',t:['Main-Übung 3-5-7, Übungstypen']},
  {v:'5',t:['Overload-Vorschlag, Notizen, Aufwärmsätze, Mahlzeiten, Maße']},{v:'4',t:['Barcode-Scanner, Open Food Facts']},{v:'3',t:['Cloud-Backup']},{v:'2',t:['Letztes Training als Vorlage, Kraftvergleich']},{v:'1',t:['Erste Version']}];
-export function changelogSheet(){sheet(`<h3>Was ist neu</h3><div class="list">${CHANGES.map(c=>`<div class="item top"><span class="tiny" style="min-width:36px">v${c.v}</span><span>${c.t.join('<br>')}</span></div>`).join('')}</div><button class="btn wide mt3" data-x="close">OK</button>`,{close:closeSheet})}
+export function changelogSheet(){sheet(`<h3>Was ist neu</h3><div class="list">${CHANGES.map(c=>`<div class="item top" style="justify-content:flex-start"><span class="tiny" style="min-width:36px;padding-top:3px">v${c.v}</span><span class="grow">${c.t.join('<br>')}</span></div>`).join('')}</div><button class="btn wide mt3" data-x="close">OK</button>`,{close:closeSheet})}
 
 // ----- Bootstrap -----
 if(location.search)history.replaceState(null,'',location.pathname);
@@ -40,6 +41,6 @@ if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 on('replace',()=>rerender());
 on('photos',()=>{if(currentTab()==='body')photos.renderGrid()});
-if(localStorage.getItem('perf.seen')!==APP_VERSION){localStorage.setItem('perf.seen',APP_VERSION);if(localStorage.getItem(KEY))setTimeout(changelogSheet,600)}
+if(localStorage.getItem('perf.seen')!==APP_VERSION){const had=!!localStorage.getItem('perf.seen');localStorage.setItem('perf.seen',APP_VERSION);if(had)setTimeout(()=>toast('Aktualisiert auf Version '+APP_VERSION),800)}
 photos.loadMeta().then(()=>{render(true);pullSync();checkUpdate()});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
