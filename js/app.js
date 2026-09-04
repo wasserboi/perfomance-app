@@ -24,6 +24,7 @@ el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
   try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
   location.reload()};
 export const CHANGES=[
+ {v:'17',t:['Menge: Portion wählen + Anzahl mit −/+, oder Gramm-Modus']},
  {v:'16',t:['Standardportionen: 1 Ei, Scheibe Brot, Scoop Whey, EL Öl … als Chips; eigene Portion pro Produkt']},
  {v:'15',t:['Updates laden jetzt automatisch beim Öffnen; Update-Balken zeigt Fortschritt']},
  {v:'14',t:['Grundnahrungsmittel eingebaut (Ei, Hähnchenbrust, Reis …), bessere Suchreihenfolge']},

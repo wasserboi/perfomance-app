@@ -38,17 +38,21 @@ export function foodForm(day,f){
     save:()=>{f.name=el('ffn').value.trim();f.brand=el('ffb').value.trim();['p','c','f'].forEach(k=>f[k]=+el('ff'+k).value||0);f.kcal=+el('ffk').value||null;const pn=el('ffpn').value.trim(),pg=+el('ffpg').value;f.portions=pn&&pg?[{n:pn,g:pg}].concat((f.portions||[]).slice(1)):(f.portions||[]).slice(1);if(!f.name){toast('Name fehlt');return}amountSheet(day,f)}});
 }
 export function amountSheet(day,f){
-  f=Object.assign({id:uid(),unit:'g'},f);
-  const draw=()=>{const a=+el('fam').value||100,m=k=>f[k]*a/100;el('fcalc').innerHTML=`<div><b>${Math.round(fkcal(f)*a/100)}</b><small>kcal</small></div><div><b>${r1(m('p'))}</b><small>Protein</small></div><div><b>${r1(m('c'))}</b><small>Carbs</small></div><div><b>${r1(m('f'))}</b><small>Fett</small></div>`};
-  sheet(`<h3>${esc(f.name)}</h3><div class="tiny mb3">${esc(f.brand||'')}${f.brand?' · ':''}pro 100 ${f.unit}: ${fkcal(f)} kcal · P ${r1(f.p)} · C ${r1(f.c)} · F ${r1(f.f)}</div>
-  <div class="amt"><input type="number" inputmode="decimal" id="fam" value="100"><span>${f.unit}</span></div>
-  ${(f.portions||[]).length?`<div class="mt2">${f.portions.flatMap(po=>[1,2,3].map(k=>`<button class="chip" data-x="q" data-v="${po.g*k}">${k>1?k+'× ':''}${esc(po.n)} <span class="tiny">${po.g*k} ${f.unit}</span></button>`)).join('')}</div>`:''}
-  <div class="${(f.portions||[]).length?'mt1':'mt2'}">${[50,100,150,200,250,300,500].map(v=>`<button class="chip" data-x="q" data-v="${v}">${v}</button>`).join('')}</div>
-  <div class="calc" id="fcalc"></div>
-  <div class="grid2"><button class="btn" data-x="edit">Bearbeiten</button><button class="btn primary" data-x="add">Hinzufügen</button></div>`,{
-    q:b=>{el('fam').value=b.dataset.v;draw()},edit:()=>foodForm(day,f),
-    add:()=>{const amt=+el('fam').value;if(!amt){toast('Menge eingeben');return}bookFood(day,f,amt);closeSheet();rerender();toast('Hinzugefügt')}});
-  draw();const inp=el('fam');inp.oninput=draw;setTimeout(()=>{inp.focus();inp.select()},50);
+  f=Object.assign({id:uid(),unit:'g'},f);const ports=f.portions||[];let pi=ports.length?Math.min(1,ports.length-1):-1,cnt=1,mode=ports.length?'portion':'gram';
+  const amount=()=>mode==='portion'?ports[pi].g*cnt:(+el('fam')?.value||0);
+  const calc=()=>{const a=amount(),m=k=>f[k]*a/100;el('fcalc').innerHTML=`<div><b>${Math.round(fkcal(f)*a/100)}</b><small>kcal</small></div><div><b>${r1(m('p'))}</b><small>Protein</small></div><div><b>${r1(m('c'))}</b><small>Carbs</small></div><div><b>${r1(m('f'))}</b><small>Fett</small></div>`;const t=el('ftot');if(t)t.textContent=a+' '+f.unit};
+  const body=()=>mode==='portion'?`<div class="mb2">${ports.map((po,i)=>`<button class="chip ${i===pi?'on':''}" data-x="port" data-i="${i}">${esc(po.n)} <span class="tiny">${po.g} ${f.unit}</span></button>`).join('')}</div>
+    <div class="row"><button class="btn" data-x="cnt" data-d="-1" style="width:56px">−</button><div class="grow big num" style="text-align:center;font-size:30px" id="fcnt">${cnt}</div><button class="btn" data-x="cnt" data-d="1" style="width:56px">+</button><div class="muted num" id="ftot" style="min-width:64px;text-align:right"></div></div>`
+    :`<div class="amt"><input type="number" inputmode="decimal" id="fam" value="${amount()||100}"><span>${f.unit}</span></div><div class="mt2">${[50,100,150,200,250,300,500].map(v=>`<button class="chip" data-x="q" data-v="${v}">${v}</button>`).join('')}</div>`;
+  const draw=()=>{sheet(`<h3>${esc(f.name)}</h3><div class="tiny mb3">${esc(f.brand||'')}${f.brand?' · ':''}pro 100 ${f.unit}: ${fkcal(f)} kcal · P ${r1(f.p)} · C ${r1(f.c)} · F ${r1(f.f)}</div>
+    ${ports.length?`<div class="grid2 mb3"><button class="btn sm ${mode==='portion'?'primary':''}" data-x="mode" data-m="portion">Portion</button><button class="btn sm ${mode==='gram'?'primary':''}" data-x="mode" data-m="gram">${f.unit==='ml'?'Milliliter':'Gramm'}</button></div>`:''}
+    <div id="fbody">${body()}</div><div class="calc" id="fcalc"></div>
+    <div class="grid2"><button class="btn" data-x="edit">Bearbeiten</button><button class="btn primary" data-x="add">Hinzufügen</button></div>`,{
+    mode:b=>{mode=b.dataset.m;draw()},port:b=>{pi=+b.dataset.i;draw()},cnt:b=>{cnt=Math.max(1,cnt+ +b.dataset.d);el('fcnt').textContent=cnt;calc()},
+    q:b=>{el('fam').value=b.dataset.v;calc()},edit:()=>foodForm(day,f),
+    add:()=>{const amt=amount();if(!amt){toast('Menge eingeben');return}bookFood(day,f,amt);closeSheet();rerender();toast('Hinzugefügt')}});
+    calc();const inp=el('fam');if(inp){inp.oninput=calc;setTimeout(()=>{inp.focus();inp.select()},50)}};
+  draw();
 }
 let scanStop=null;
 export function scanSheet(day){
