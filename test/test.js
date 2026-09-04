@@ -93,17 +93,51 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
   // Übungsverwaltung
   click('[data-tab=plans]');click('[data-a=settings]');click('[data-x=exmgr]');click('[data-x=pick]');inp(d.getElementById('exn'),'Bankdrücken');click('[data-x=rename]');
   check('Umbenannt',store().plans[0].exercises[0].name==='Bankdrücken');click('[data-x=close]');
-  // Sync: nur geänderte Dateien
-  await sleep(3400);const files=repo.trees[repo.commits[repo.ref].tree.sha].tree.map(e=>e.path);check('Repo-Dateien',files.includes('data.json')&&files.includes('history.json'),files.join(','));
+
+  // Architektur v34: getrennte Speicherung, Bestwerte-Index — direkt hier prüfen, solange die 3 Trainings mit "Bankdrücken" noch aktuell sind
+  {
+    const st=await import(path.join(root,'js/state.js'));
+    const {kvGet}=await import(path.join(root,'js/store.js'));
+    await st.flush();
+    const meta=await kvGet('perf.v1.meta'),wk=await kvGet('perf.v1.workouts');
+    check('Meta getrennt von Workouts gespeichert',!!meta&&Array.isArray(wk)&&meta.workouts===undefined,'meta.workouts='+meta?.workouts);
+    check('Workouts vollständig in eigenem Datensatz',wk.length===store().workouts.length);
+    check('Schema gesetzt',store().schema===st.SCHEMA);
+    check('Validierung erkennt Müll',!!st.validate({workouts:[{}]})&&!st.validate(store()));
+    const m=st.migrate({schema:1,measures:[{d:'2026-01-01',arm:40,thigh:60}]});
+    check('Migration arm→armL',m.measures[0].armL===40&&m.measures[0].thighL===60&&m.schema===st.SCHEMA);
+    const bench=st.allTimeBest('Bankdrücken');
+    const realMax=Math.max(...store().workouts.flatMap(w=>w.exercises.filter(e=>e.name==='Bankdrücken').flatMap(e=>e.sets.filter(s=>!s.wu).map(s=>s.w))));
+    check('Bestwerte-Index gefüllt (O(1)-Lookup)',bench.bw>0&&bench.bw===realMax);
+    check('Index stimmt mit Volldurchsuchung überein',JSON.stringify(st.computeBests(store().workouts).Bankdrücken)===JSON.stringify(bench));
+  }
+
+  // Sync: nur geänderte Dateien, Monats-Snapshot
+  await sleep(3400);
+  {const files=repo.trees[repo.commits[repo.ref].tree.sha].tree.map(e=>e.path);
+   check('Repo-Dateien',files.includes('data.json')&&files.includes('history.json'),files.join(','));
+   check('Monats-Snapshot angelegt',files.some(f=>f.startsWith('snapshots/')),files.join(','));}
   click('[data-tab=plans]');click('[data-a=settings]');click('[data-x=restore]');await sleep(200);check('Restore',store().workouts.length===3);click('[data-x=close]');
-  {const st=await import(path.join(root,'js/state.js'));
-   check('Schema gesetzt',store().schema===st.SCHEMA);
-   check('Validierung erkennt Müll',!!st.validate({workouts:[{}]})&&!st.validate(store()));
-   const m=st.migrate({schema:1,measures:[{d:'2026-01-01',arm:40,thigh:60}]});check('Migration arm→armL',m.measures[0].armL===40&&m.measures[0].thighL===60&&m.schema===st.SCHEMA);
-   await st.flush();const idbData=await kv();check('In IndexedDB gespeichert',!!idbData&&idbData.workouts.length===store().workouts.length);}
-  {const files=repo.trees[repo.commits[repo.ref].tree.sha].tree.map(e=>e.path);check('Monats-Snapshot angelegt',files.some(f=>f.startsWith('snapshots/')),files.join(','));}
+
+  // Aus Backup-Historie wiederherstellen (über die UI)
   click('[data-tab=plans]');click('[data-a=settings]');click('[data-x=snaps]');await sleep(120);
-  check('Historie-Liste',!!d.querySelector('[data-x=pick]'));click('[data-x=pick]');await sleep(400);check('Snapshot ersetzt aktuellen Stand',store().workouts.length===0&&store().plans.length===0&&store().schema===2);
+  check('Historie-Liste',!!d.querySelector('[data-x=pick]'));click('[data-x=pick]');await sleep(400);
+  check('Snapshot ersetzt aktuellen Stand',store().workouts.length===0&&store().plans.length===0);
+
+  // Sicherungsstand + Rückgängig (über die API, mit künstlichem Snapshot)
+  {
+    click('[data-tab=plans]');click('[data-a=settings]');inp(d.getElementById('syTok'),'tok');click('[data-x=connect]');await sleep(100);
+    click('[data-a=edit]');inp(d.getElementById('pn'),'Erneut');click('[data-x=save]');click('[data-x=close]');
+    const before=store().plans.length;
+    const {restoreSnapshot}=await import(path.join(root,'js/sync.js'));
+    const empty=JSON.parse(JSON.stringify(store()));empty.plans=[];
+    const s=sha();repo.blobs[s]=Buffer.from(JSON.stringify(empty)).toString('base64');
+    await restoreSnapshot(s);
+    check('Wiederherstellen ersetzt Daten',store().plans.length===0&&before>0);
+    click('[data-tab=plans]');click('[data-a=settings]');click('[data-x=undo]');await sleep(50);
+    check('Rückgängig stellt vorherigen Stand wieder her',store().plans.length===before);
+    click('[data-x=close]');
+  }
   check('Keine JS-Fehler',errs.length===0,errs.join(' | '));
   console.log(fails?`\n${fails} Test(s) fehlgeschlagen`:'\nAlle Tests bestanden');process.exit(fails?1:0);
 })().catch(e=>{console.log('FAIL',e.stack);process.exit(1)});

@@ -1,6 +1,6 @@
 import {S,save,clone,uid,esc,TYPES,stageLabel,APP_VERSION,today,e1rm,renameExercise,replaceState} from '../state.js';
 import {sheet,closeSheet,toast,confirm2,rerender,dl,csv,el} from '../ui.js';
-import {SY,syncText,connect,pushSync,pullSync,listSnapshots,restoreSnapshot} from '../sync.js';
+import {SY,syncText,connect,pushSync,pullSync,listSnapshots,restoreSnapshot,lastSafetyBackup} from '../sync.js';
 import {checkUpdate,changelogSheet} from '../app.js';
 
 const gear='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>';
@@ -48,6 +48,7 @@ export function settingsSheet(){
     <div class="field"><label class="f">Token</label><input id="syTok" type="password" value="${esc(SY.token)}" placeholder="github_pat_…" autocapitalize="off" autocorrect="off"></div>
     <div class="grid2"><button class="btn primary" data-x="connect">Verbinden</button><button class="btn" data-x="restore" ${SY.token?'':'disabled'}>Letzten Stand laden</button></div>
     <button class="btn wide mt2" data-x="snaps" ${SY.token?'':'disabled'}>Aus Backup-Historie wiederherstellen</button>
+    <button class="btn ghost wide mt2" data-x="undo">Letzte Wiederherstellung rückgängig</button>
     ${SY.state==='conflict'?'<div class="card sub warn mt2"><div style="font-weight:600">Konflikt</div><div class="tiny mt1">Auf einem anderen Gerät wurde später gesichert. Entweder den Cloud-Stand laden oder diesen hier hochladen.</div><div class="grid2 mt2"><button class="btn sm" data-x="restore">Cloud laden</button><button class="btn sm" data-x="forcepush">Diesen Stand hochladen</button></div></div>':''}
     <div class="tiny mt2">Sichert nach jeder Änderung automatisch ins Repo (Daten, Historie, Fotos). Der Token bleibt nur auf diesem Gerät.</div></div>
   <div class="muted mt4 mb2">Übungen</div>
@@ -61,6 +62,9 @@ export function settingsSheet(){
     close:()=>{closeSheet();rerender()},
     connect:()=>{toast('Verbinde…');connect(el('syRepo').value,el('syTok').value).then(()=>{settingsSheet();toast(SY.state==='ok'?'Cloud-Backup aktiv':SY.token?'Verbindung fehlgeschlagen':'Getrennt')})},
     syncnow:()=>pushSync(),forcepush:()=>{pushSync(true).then(()=>{settingsSheet();toast('Hochgeladen')})},
+    undo:async()=>{const b=await lastSafetyBackup();if(!b){toast('Kein Sicherungsstand vorhanden');return}
+      if(!confirm2('Stand von '+new Date(b.at).toLocaleString('de-DE')+' wiederherstellen?'))return;
+      const {replaceState,save:sv,rebuildBestsFull}=await import('../state.js');replaceState(b.data);rebuildBestsFull();sv();toast('Wiederhergestellt');closeSheet();rerender()},
     snaps:async()=>{toast('Lade Historie…');try{const list=await listSnapshots();
       sheet(`<h3>Backup-Historie</h3><div class="tiny mb3">Monats-Snapshots im Repo. Der aktuelle Stand wird ersetzt.</div>
         ${list.length?`<div class="list">${list.map(x=>`<button class="food" data-x="pick" data-sha="${x.sha}" data-n="${x.name}"><span class="fn">${x.name}</span><span class="fm">wiederherstellen ›</span></button>`).join('')}</div>`:'<div class="muted">Noch keine Snapshots – der erste entsteht beim nächsten Backup.</div>'}

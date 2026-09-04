@@ -1,4 +1,4 @@
-import {S,replaceState,save,on,flush,validate,today} from './state.js';
+import {S,replaceState,save,on,flush,validate,today,rebuildBestsFull} from './state.js';
 import {el,toast} from './ui.js';
 import * as photos from './photos.js';
 
@@ -63,7 +63,9 @@ export async function pullSync(force){
     const g=await getAll();if(!g){await pushSync();return}
     photos.mergeRemote(g.files);
     const bad=validate(g.data);if(bad){SY.state='err:'+bad;saveSY();setStatus();return}
-    if(force||(g.data.updatedAt||0)>(S.updatedAt||0)){replaceState(g.data);const p=splitData();SY.shas={'data.json':await hash(p.data),'history.json':await hash(p.history)};SY.state='ok';SY.last=Date.now();SY.pending=false;saveSY();if(force)toast('Backup wiederhergestellt')}
+    if(force||(g.data.updatedAt||0)>(S.updatedAt||0)){
+      if(force)await safetyBackup();
+      replaceState(g.data);rebuildBestsFull();save();const p=splitData();SY.shas={'data.json':await hash(p.data),'history.json':await hash(p.history)};SY.state='ok';SY.last=Date.now();SY.pending=false;saveSY();if(force)toast('Backup wiederhergestellt')}
     else if(SY.pending||(S.updatedAt||0)>(g.data.updatedAt||0))await pushSync();
     else{SY.state='ok';saveSY()}
     setStatus();
@@ -72,7 +74,10 @@ export async function pullSync(force){
 export async function listSnapshots(){const t=await tree();if(!t)return[];
   return Object.keys(t.files).filter(k=>k.startsWith('snapshots/')).sort().reverse().map(k=>({name:k.slice(10,-5),sha:t.files[k]}))}
 export async function restoreSnapshot(sha){const d=JSON.parse(await blob(sha));const bad=validate(d);if(bad)throw new Error(bad);
-  replaceState(d);SY.shas={};saveSY();await pushSync(true);return true}
+  await safetyBackup();replaceState(d);rebuildBestsFull();save();SY.shas={};saveSY();await pushSync(true);return true}
+/* Automatischer Sicherungsstand direkt vor dem Ersetzen der lokalen Daten, damit ein Fehlklick nichts endgültig kostet */
+async function safetyBackup(){try{const {kvSet}=await import('./store.js');await kvSet('perf.v1.safety',{at:Date.now(),data:JSON.parse(JSON.stringify(S))})}catch(e){}}
+export async function lastSafetyBackup(){try{const {kvGet}=await import('./store.js');return await kvGet('perf.v1.safety')}catch(e){return null}}
 export function syncText(){
   if(!SY.token)return'Kein Cloud-Backup eingerichtet';
   if(SY.state==='conflict')return'Konflikt: Auf einem anderen Gerät wurde neuer gesichert';

@@ -1,1 +1,1 @@
-{"version":"33","changes":[{"v":"33","t":["IndexedDB, Migrationen, Snapshots, Konflikterkennung"]}]}
+{"version":"34","changes":[{"v":"34","t":["Speicherung aufgeteilt","Bestwerte-Index","Sicherungsstand vor Wiederherstellen"]}]}

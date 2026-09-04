@@ -1,7 +1,7 @@
 import {kvGet,kvSet,mirror,readMirror} from './store.js';
 // ===== Konstanten =====
-export const APP_VERSION='33';
-export const SCHEMA=2;
+export const APP_VERSION='34';
+export const SCHEMA=3;
 export const KEY='perf.v1';
 export const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];
 export const TYPES=['Freihand','Maschine','Kabelturm'];
@@ -9,7 +9,7 @@ export const MEAS=[['waist','Bauch'],['chest','Brust'],['armL','Arm links'],['ar
 export const stageLabel=st=>STAGES[st].sets+'×'+STAGES[st].reps;
 
 const def={plans:[],workouts:[],weights:[],macros:{},foods:[],meals:[],measures:[],exNotes:{},dayType:{},
-  goals:{p:180,c:250,f:80},goalsRest:null,goalMode:'hold',water:{},photosDeleted:[],supps:[],checks:{},waterGoal:3000,settings:{rest:90,overload:2.5},active:null};
+  goals:{p:180,c:250,f:80},goalsRest:null,goalMode:'hold',water:{},photosDeleted:[],supps:[],checks:{},waterGoal:3000,bests:{},settings:{rest:90,overload:2.5},active:null};
 
 // ===== State =====
 export const clone=o=>JSON.parse(JSON.stringify(o));
@@ -21,9 +21,12 @@ const MIGRATIONS={
     (d.measures||[]).forEach(m=>{if(m.arm!==undefined&&m.armL===undefined){m.armL=m.arm;delete m.arm}
       if(m.thigh!==undefined&&m.thighL===undefined){m.thighL=m.thigh;delete m.thigh}});
     d.supps=d.supps||[];d.checks=d.checks||{};d.water=d.water||{};
-    return d}
+    return d},
+  2:d=>{d.bests={};return d} // Index wird direkt danach in migrate() aus den Trainings aufgebaut
 };
-export function migrate(d){let v=d.schema||1;while(v<SCHEMA){const f=MIGRATIONS[v];if(f)d=f(d)||d;v++}d.schema=SCHEMA;return d}
+export function migrate(d){let v=d.schema||1;while(v<SCHEMA){const f=MIGRATIONS[v];if(f)d=f(d)||d;v++}d.schema=SCHEMA;
+  if((!d.bests||!Object.keys(d.bests).length)&&(d.workouts||[]).length)d.bests=computeBests(d.workouts);
+  return d}
 
 /* Plausibilitätsprüfung vor dem Übernehmen fremder Daten */
 export function validate(d){
@@ -35,22 +38,32 @@ export function validate(d){
 }
 
 export async function initState(){
+  let meta=null,workouts=null;
+  try{meta=await kvGet(KEY+'.meta');workouts=await kvGet(KEY+'.workouts')}catch(e){}
   let data=null;
-  try{data=await kvGet(KEY)}catch(e){}
-  if(!data){const raw=readMirror(KEY);if(raw){try{data=JSON.parse(raw)}catch(e){}}}
+  if(meta){data=Object.assign({},meta,{workouts:workouts||[]})}
+  else{ // Altbestand vor der Aufteilung (ein Objekt) oder localStorage-Kopie
+    const raw=readMirror(KEY);if(raw){try{data=JSON.parse(raw)}catch(e){}}
+  }
   S=migrate(Object.assign(clone(def),data||{}));
-  if(data)await persist();
+  if(data)await persist(true);
   return S;
 }
-export function replaceState(data){S=migrate(Object.assign(clone(def),data));persist();emit('replace')}
+export function replaceState(data){S=migrate(Object.assign(clone(def),data));workoutsDirty=true;persist(true);emit('replace')}
 
-let saveT=null,pending=false;
-async function persist(){const str=JSON.stringify(S);mirror(KEY,str);try{await kvSet(KEY,JSON.parse(str))}catch(e){console.warn('IndexedDB',e)}}
+let saveT=null,pending=false,workoutsDirty=false;
+export function touchWorkouts(){workoutsDirty=true}
+async function persist(all){
+  mirror(KEY,JSON.stringify(S));
+  const {workouts,...meta}=S;
+  try{await kvSet(KEY+'.meta',JSON.parse(JSON.stringify(meta)))}catch(e){console.warn('IndexedDB meta',e)}
+  if(all||workoutsDirty){try{await kvSet(KEY+'.workouts',JSON.parse(JSON.stringify(workouts)))}catch(e){console.warn('IndexedDB workouts',e)}workoutsDirty=false}
+}
 export function save(){S.updatedAt=Date.now();S.schema=SCHEMA;
-  const str=JSON.stringify(S);mirror(KEY,str);
-  pending=true;clearTimeout(saveT);saveT=setTimeout(()=>{pending=false;kvSet(KEY,JSON.parse(str)).catch(e=>console.warn('IndexedDB',e))},300);
+  mirror(KEY,JSON.stringify(S)); // Notfallkopie sofort und synchron (localStorage), damit sie nie älter als der letzte Tastendruck ist
+  pending=true;clearTimeout(saveT);saveT=setTimeout(()=>{pending=false;persist(false)},300);
   emit('save')}
-export async function flush(){if(pending){clearTimeout(saveT);pending=false;await persist()}}
+export async function flush(){if(pending){clearTimeout(saveT);pending=false;await persist(workoutsDirty)}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flush()});
 
 const listeners={};
@@ -99,7 +112,20 @@ export function prsFor(w){
     if(p.length){out[e.name]=p;n+=p.length}});
   return{per:out,n};
 }
-export function allTimeBest(name){let bw=0,brm=0;S.workouts.forEach(x=>{const h=x.exercises.find(y=>y.name===name);if(h)work(h).forEach(t=>{bw=Math.max(bw,t.w);brm=Math.max(brm,e1rm(t.w,t.r))})});return{bw,brm}}
+// Vorberechneter Index der Bestwerte je Übung (statt bei jedem Satz die komplette Historie zu durchsuchen)
+export function allTimeBest(name){return S.bests[name]||{bw:0,brm:0,bv:0}}
+export function rebuildBests(w){ // ein Training in den bestehenden Index einpflegen (O(Sätze dieses Trainings))
+  w.exercises.forEach(e=>{const b=S.bests[e.name]||{bw:0,brm:0,bv:0};
+    work(e).forEach(t=>{b.bw=Math.max(b.bw,t.w);b.brm=Math.max(b.brm,e1rm(t.w,t.r));b.bv=Math.max(b.bv,t.w*t.r)});
+    S.bests[e.name]=b});
+}
+export function computeBests(workouts){ // reine Funktion, unabhängig vom globalen State (auch für Migration nutzbar)
+  const bests={};(workouts||[]).forEach(w=>w.exercises.forEach(e=>{const b=bests[e.name]||{bw:0,brm:0,bv:0};
+    const ws=(e.sets||[]).filter(s=>!s.wu);
+    ws.forEach(t=>{b.bw=Math.max(b.bw,t.w);b.brm=Math.max(b.brm,e1rm(t.w,t.r));b.bv=Math.max(b.bv,t.w*t.r)});bests[e.name]=b}));
+  return bests;
+}
+export function rebuildBestsFull(){S.bests=computeBests(S.workouts)} // komplette Neuberechnung, z. B. nach Umbenennen/Zusammenführen oder Wiederherstellen
 export function allExercises(){const m={};S.workouts.forEach(w=>w.exercises.forEach(e=>m[e.name]=w.date));return Object.keys(m).sort((a,b)=>m[b]<m[a]?-1:1)}
 export function recentExercises(n=6){const seen=[];for(let i=S.workouts.length-1;i>=0&&seen.length<n;i--)S.workouts[i].exercises.forEach(e=>{if(!seen.includes(e.name))seen.push(e.name)});return seen}
 export function exHistory(name){return S.workouts.map(w=>{const e=w.exercises.find(x=>x.name===name);if(!e)return null;const ws=work(e);if(!ws.length)return null;const best=ws.reduce((a,s)=>e1rm(s.w,s.r)>e1rm(a.w,a.r)?s:a,ws[0]);return{d:w.date,w:best.w,r:best.r,rm:e1rm(best.w,best.r),vol:ws.reduce((a,s)=>a+s.w*s.r,0)}}).filter(x=>x&&x.rm>0)}
@@ -109,7 +135,7 @@ export function renameExercise(from,to){if(!to||from===to)return;
   S.plans.forEach(p=>p.exercises.forEach(e=>{if(e.name===from)e.name=to}));
   if(S.active)S.active.exercises.forEach(e=>{if(e.name===from)e.name=to});
   if(S.exNotes[from]){S.exNotes[to]=S.exNotes[to]||S.exNotes[from];delete S.exNotes[from]}
-  save();
+  touchWorkouts();rebuildBestsFull();save();
 }
 
 // ===== Workout starten / beenden =====
@@ -140,7 +166,7 @@ export function finishWorkout(){
     if(ok&&st.stage===2)next.weight=st.weight+(pe.step||10);
     mainRes={name:me.name,ok,deload,from:st,to:next,done:ws.filter(x=>x.r>=cfg.reps&&x.w>=st.weight).length,need:cfg.sets};pe.state=next;}
   const w={id:a.id,name:a.name,planId:a.planId,date:new Date().toISOString(),duration:(Date.now()-a.start)/1000,exercises,mainRes};
-  S.workouts.push(w);S.active=null;save();return w;
+  S.workouts.push(w);S.active=null;touchWorkouts();rebuildBests(w);save();return w;
 }
 
 // ===== Ernährung =====

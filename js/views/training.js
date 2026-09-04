@@ -1,4 +1,4 @@
-import {S,save,STAGES,stageLabel,esc,fmtD,fmtDL,de,vol,totalKg,planWorkouts,lastSets,compare,prsFor,allTimeBest,e1rm,pctS,pctC,startWorkout,finishWorkout,today} from '../state.js';
+import {S,save,STAGES,stageLabel,esc,fmtD,fmtDL,de,vol,totalKg,planWorkouts,lastSets,compare,prsFor,allTimeBest,e1rm,pctS,pctC,startWorkout,finishWorkout,today,touchWorkouts,rebuildBestsFull} from '../state.js';
 import {sheet,closeSheet,toast,prompt2,confirm2,rerender,render,svgCheck} from '../ui.js';
 import {moveItem} from './plans.js';
 import {startTimer,stopTimer} from '../timer.js';
@@ -82,7 +82,7 @@ export function summarySheet(id){
   ${cl||cf?`<div class="grid2">${box('vs. letztes Mal',cl)}${box('seit Aufzeichnung',cf)}</div><div class="tiny mb3 mt1">Kraft-Score = Summe der geschätzten 1RM aller Übungen, die in beiden Trainings vorkamen.</div>`:'<div class="muted mb3">Erstes Training mit diesem Plan – ab dem nächsten Mal siehst du hier den Vergleich.</div>'}
   <div class="card sub list">${w.exercises.map(x=>{const d=cl?.per.find(p=>p.name===x.name);return`<div class="item"><div class="grow"><div style="font-weight:600">${x.main?'<span class="tag main">Main</span>':''}${x.type?`<span class="tag">${x.type[0]}</span>`:''}${esc(x.name)}${(prs.per[x.name]||[]).map(p=>`<span class="pr">PR ${p}</span>`).join('')}</div><div class="tiny num">${x.sets.map(s=>(s.wu?'W ':'')+s.w+'×'+s.r).join(' · ')}</div></div>${d?`<span class="num ${pctC(d.pct)}" style="font-weight:600">${pctS(d.pct)}</span>`:'<span class="tiny">neu</span>'}</div>`}).join('')}</div>
   <button class="btn primary wide mt2" data-x="close">Fertig</button><button class="btn ghost danger wide mt2" data-x="del">Training löschen</button>`,
-  {close:closeSheet,del:()=>{if(!confirm2('Löschen?'))return;S.workouts=S.workouts.filter(x=>x.id!==id);save();closeSheet();rerender()}});
+  {close:closeSheet,del:()=>{if(!confirm2('Löschen?'))return;S.workouts=S.workouts.filter(x=>x.id!==id);touchWorkouts();rebuildBestsFull();save();closeSheet();rerender()}});
 }
 
 export default{
