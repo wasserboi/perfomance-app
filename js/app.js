@@ -25,6 +25,7 @@ el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
   try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
   location.reload()};
 export const CHANGES=[
+ {v:'32',t:['Höhe wird jetzt live gemessen – Tab-Leiste sitzt korrekt am unteren Rand']},
  {v:'31',t:['Höhe der App korrigiert – Leiste sitzt am Rand']},
  {v:'30',t:['Tab-Leiste sitzt jetzt bündig am unteren Rand']},
  {v:'29',t:['Tab-Leiste bleibt beim Scrollen fest unten']},
@@ -48,6 +49,13 @@ export const CHANGES=[
  {v:'10',t:['Maße links/rechts']},{v:'9',t:['Layout aufgeräumt']},{v:'8',t:['PRs, Gesamtvolumen']},{v:'7',t:['Einstellungen im Zahnrad']},{v:'6',t:['Main-Übung 3-5-7, Übungstypen']},
  {v:'5',t:['Overload-Vorschlag, Notizen, Aufwärmsätze, Mahlzeiten, Maße']},{v:'4',t:['Barcode-Scanner, Open Food Facts']},{v:'3',t:['Cloud-Backup']},{v:'2',t:['Letztes Training als Vorlage, Kraftvergleich']},{v:'1',t:['Erste Version']}];
 export function changelogSheet(){sheet(`<h3>Was ist neu</h3><div class="list">${CHANGES.map(c=>`<div class="item top" style="justify-content:flex-start"><span class="tiny" style="min-width:36px;padding-top:3px">v${c.v}</span><span class="grow">${c.t.join('<br>')}</span></div>`).join('')}</div><button class="btn wide mt3" data-x="close">OK</button>`,{close:closeSheet})}
+
+// ----- Viewport-Höhe (iOS: 100dvh ist im Standalone-Modus unzuverlässig) -----
+function setVH(){const h=(window.visualViewport&&window.visualViewport.height>window.innerHeight?window.visualViewport.height:window.innerHeight)||window.innerHeight;
+  document.documentElement.style.setProperty('--vh',h+'px')}
+setVH();window.addEventListener('resize',setVH);window.addEventListener('orientationchange',()=>setTimeout(setVH,200));
+if(window.visualViewport)window.visualViewport.addEventListener('resize',()=>{if(!document.activeElement||!/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))setVH()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(setVH,50)});
 
 // ----- Bootstrap -----
 if(location.search)history.replaceState(null,'',location.pathname);
