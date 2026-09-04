@@ -58,7 +58,10 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
   check('Plan gespeichert',store().plans.length===1&&store().plans[0].exercises[1].type==='Kabelturm');
   // Reihenfolge
   {const {moveItem}=await import(path.join(root,'js/views/plans.js'));const a=['A','B','C'];moveItem(a,0,2);check('moveItem verschiebt',a.join('')==='BCA');}
-  click('[data-a=edit][data-id]');check('Drag-Griffe vorhanden',d.querySelectorAll('[data-drag]').length===2);click('[data-x=close]');
+  click('[data-a=edit][data-id]');check('Drag-Griffe im Plan',d.querySelectorAll('[data-drag]').length===2);click('[data-x=close]');
+  click('[data-tab=log]');click('[data-a=start][data-id]');check('Drag-Griffe im Training',d.querySelectorAll('#app [data-drag]').length===2);
+  {const {moveItem}=await import(path.join(root,'js/views/plans.js'));const ex=store().active.exercises;moveItem(ex,0,1);check('Training umsortiert',ex[0].name==='Flys');}
+  click('[data-a=cancel]');
   // Training: 10x3 ok -> 7x5
   const session=(okSets,flysKg)=>{click('[data-tab=log]');click('[data-a=start][data-id]');clickAll('[data-a=done]',okSets);
     if(flysKg){const n=d.querySelectorAll('input[data-f=w]').length-1;inp(d.querySelectorAll('input[data-f=w]')[n],flysKg);inp(d.querySelectorAll('input[data-f=r]')[n],10);d.querySelectorAll('[data-a=done]')[n].dispatchEvent(new w.MouseEvent('click',{bubbles:true}))}
