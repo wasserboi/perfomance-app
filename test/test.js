@@ -103,7 +103,7 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
    await st.flush();const idbData=await kv();check('In IndexedDB gespeichert',!!idbData&&idbData.workouts.length===store().workouts.length);}
   {const files=repo.trees[repo.commits[repo.ref].tree.sha].tree.map(e=>e.path);check('Monats-Snapshot angelegt',files.some(f=>f.startsWith('snapshots/')),files.join(','));}
   click('[data-tab=plans]');click('[data-a=settings]');click('[data-x=snaps]');await sleep(120);
-  check('Historie-Liste',!!d.querySelector('[data-x=pick]'));click('[data-x=pick]');await sleep(400);check('Snapshot wiederhergestellt (Stand vom Monatsbeginn)',store().plans.length===1&&store().schema===2);
+  check('Historie-Liste',!!d.querySelector('[data-x=pick]'));click('[data-x=pick]');await sleep(400);check('Snapshot ersetzt aktuellen Stand',store().workouts.length===0&&store().plans.length===0&&store().schema===2);
   check('Keine JS-Fehler',errs.length===0,errs.join(' | '));
   console.log(fails?`\n${fails} Test(s) fehlgeschlagen`:'\nAlle Tests bestanden');process.exit(fails?1:0);
 })().catch(e=>{console.log('FAIL',e.stack);process.exit(1)});
