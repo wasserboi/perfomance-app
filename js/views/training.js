@@ -34,7 +34,7 @@ function active(){
   const a=S.active,min=Math.round((Date.now()-a.start)/60000);
   return `<div class="row between" style="margin:6px 0 14px"><h1 class="sm" style="margin:0">${esc(a.name)}<small>${min} min · ${de(vol(a))} kg${a.basedOn?' · Basis: letztes Training':''}</small></h1><button class="btn ghost danger sm" data-a="cancel">Abbrechen</button></div>
   ${a.exercises.map((ex,ei)=>{const prev=lastSets(ex.name);return`<div class="card ex" data-row="${ei}">
-    <div class="row between top"><button class="drag" data-drag="${ei}" aria-label="Verschieben">≡</button><div class="grow"><div class="tags">${ex.main?'<span class="tag main">Main</span>':''}${ex.type?`<span class="tag">${ex.type}</span>`:''}${ex.sug?`<span class="sug">↑ +${String(ex.sug).replace('.',',')} kg</span>`:''}</div><div class="name">${esc(ex.name)}</div></div><button class="icon" data-a="note" data-i="${ei}">✎</button><button class="icon" data-a="rmex" data-i="${ei}">✕</button></div>
+    <div class="row between top"><div class="grow"><div class="tags">${ex.main?'<span class="tag main">Main</span>':''}${ex.type?`<span class="tag">${ex.type}</span>`:''}${ex.sug?`<span class="sug">↑ +${String(ex.sug).replace('.',',')} kg</span>`:''}</div><div class="name">${esc(ex.name)}</div></div><div class="ord"><button class="icon" data-a="up" data-i="${ei}" ${ei===0?'disabled':''} aria-label="Nach oben">▲</button><button class="icon" data-a="down" data-i="${ei}" ${ei===a.exercises.length-1?'disabled':''} aria-label="Nach unten">▼</button></div><button class="icon" data-a="note" data-i="${ei}">✎</button><button class="icon" data-a="rmex" data-i="${ei}">✕</button></div>
     ${ex.main?`<div class="stagebar">${STAGES.map((c,i)=>`<span class="${i===ex.stage?'on':i<ex.stage?'ok':''}">${c.sets}×${c.reps}</span>`).join('')}</div><div class="prev">Ziel ${STAGES[ex.stage].sets} × ${STAGES[ex.stage].reps} mit ${ex.sets.find(s=>!s.wu)?.w} kg</div>`:`<div class="prev">${prev?'Letztes Mal: '+prev.slice(0,6).map(s=>s.w+'×'+s.r).join(', ')+(prev.length>6?' …':''):'Erstes Mal'}${ex.targetReps?' · Ziel '+ex.targetReps+' Reps':''}</div>`}
     ${S.exNotes[ex.name]?`<div class="note">${esc(S.exNotes[ex.name])}</div>`:''}
     <div class="sets"><div class="h">Satz</div><div class="h">kg</div><div class="h">Reps</div><div class="h"></div>
@@ -45,7 +45,7 @@ function active(){
     </div>
     <div class="row mt3"><button class="btn sm" data-a="addset" data-i="${ei}">+ Satz</button><button class="btn ghost sm" data-a="addwu" data-i="${ei}">+ Aufwärmsatz</button>${ex.sets.length>1?`<button class="btn ghost sm" data-a="rmset" data-i="${ei}">− Satz</button>`:''}</div>
   </div>`}).join('')}
-  <div class="tiny mb3">Satznummer antippen = Aufwärmsatz (zählt nicht für Score und Volumen). Am ≡ ziehen, um Übungen umzusortieren.</div>
+  <div class="tiny mb3">Satznummer antippen = Aufwärmsatz (zählt nicht für Score und Volumen).</div>
   <button class="btn wide mb2" data-a="addex">+ Übung hinzufügen</button>
   <button class="btn wide primary" data-a="finish">Training beenden</button>`;
 }
@@ -64,25 +64,8 @@ export function summarySheet(id){
   {close:closeSheet,del:()=>{if(!confirm2('Löschen?'))return;S.workouts=S.workouts.filter(x=>x.id!==id);save();closeSheet();rerender()}});
 }
 
-function attachDrag(){
-  const box=document.getElementById('app');if(!S.active)return;
-  box.querySelectorAll('[data-drag]').forEach(h=>{
-    h.addEventListener('pointerdown',ev=>{
-      ev.preventDefault();let i=+h.dataset.drag;const row=h.closest('[data-row]');row.classList.add('dragging');
-      try{h.setPointerCapture(ev.pointerId)}catch(_){}
-      const move=e=>{const rows=[...box.querySelectorAll('[data-row]')];
-        for(let k=0;k<rows.length;k++){if(k===i)continue;const r=rows[k].getBoundingClientRect();
-          if(e.clientY>r.top&&e.clientY<r.bottom){moveItem(S.active.exercises,i,k);i=k;save();rerender();attachDrag();
-            const nh=box.querySelector(`[data-drag="${k}"]`);if(nh){nh.closest('[data-row]').classList.add('dragging');try{nh.setPointerCapture(e.pointerId)}catch(_){}nh.addEventListener('pointermove',move);nh.addEventListener('pointerup',up)}
-            break}}};
-      const up=()=>{h.removeEventListener('pointermove',move);h.removeEventListener('pointerup',up);box.querySelectorAll('.dragging').forEach(x=>x.classList.remove('dragging'));rerender();attachDrag()};
-      h.addEventListener('pointermove',move);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up);
-    });
-  });
-}
 export default{
   html:()=>S.active?active():overview(),
-  after:attachDrag,
   action(a,d){
     const A=S.active;
     if(a==='start'){startWorkout(d.id);render(true)}
@@ -96,6 +79,7 @@ export default{
         s.done=true;startTimer(S.settings.rest);if(navigator.vibrate)navigator.vibrate(30);
         if(!s.wu){const b=allTimeBest(A.exercises[d.i].name);if(b.bw&&(s.w>b.bw||e1rm(s.w,s.r)>b.brm+0.5))toast('PR! '+s.w+' kg × '+s.r)}}
       else s.done=false;save();rerender()}
+    if(a==='up'||a==='down'){const i=+d.i,to=a==='up'?i-1:i+1;moveItem(A.exercises,i,to);save();rerender()}
     if(a==='wu'){const s=A.exercises[d.i].sets[d.s];s.wu=!s.wu;save();rerender()}
     if(a==='addwu'){A.exercises[d.i].sets.unshift({w:0,r:0,done:false,wu:true});save();rerender()}
     if(a==='addset'){const ss=A.exercises[d.i].sets,l=ss[ss.length-1];ss.push({w:l?l.w:0,r:l?l.r:0,done:false});save();rerender()}

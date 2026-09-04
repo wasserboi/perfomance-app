@@ -25,6 +25,7 @@ el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
   try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
   location.reload()};
 export const CHANGES=[
+ {v:'27',t:['Reihenfolge per ▲▼-Tasten statt Ziehen – im Plan und im laufenden Training']},
  {v:'26',t:['Übungen auch im laufenden Training per ≡ umsortieren']},
  {v:'25',t:['Trainingskalender entfernt, Wochen-Serie steht jetzt in der Wochenübersicht']},
  {v:'24',t:['Habit-Tracker: Haken oder Kreuz, 14-Tage-Übersicht mit Quote und Serie']},

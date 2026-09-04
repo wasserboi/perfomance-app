@@ -154,9 +154,10 @@ nav svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;st
 /* ===== Plans ===== */
 .prow{background:var(--bg3);border-radius:var(--r2);padding:10px;margin-bottom:var(--s2)}
 .prow select{padding:8px 10px}
-.prow.dragging,.ex.dragging{opacity:.55;outline:2px solid var(--accent2)}
-.drag{width:34px;height:40px;flex:none;color:var(--ink3);font-size:20px;line-height:1;touch-action:none;cursor:grab}
-.drag:active{cursor:grabbing;color:var(--ink)}
+.ord{display:flex;flex-direction:column;gap:2px;flex:none}
+.ord .icon{width:32px;height:24px;font-size:11px;border-radius:7px;background:var(--bg3);color:var(--ink2)}
+.ord .icon:disabled{opacity:.25}
+.ord .icon:active{background:var(--accent);color:#fff}
 
 /* ===== Macros ===== */
 .macro{margin-bottom:14px}
