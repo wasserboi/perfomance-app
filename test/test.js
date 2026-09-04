@@ -68,7 +68,8 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
   check('Skyr 400 g gebucht',/44/.test(d.querySelector('.macro b').textContent));
   click('[data-a=search]');inp(d.getElementById('fq'),'Ei');await sleep(50);check('Basics: Ei zuerst, nicht Eis',/Ei \(Hühnerei\)/.test(d.querySelector('#fres .food .fn').textContent));click('#fres .food');check('Portion vorausgewählt (Ei M)',d.querySelector('[data-x=port].on').textContent.includes('Ei (M)'));click('[data-x=cnt][data-d="1"]');check('Anzahl 2 → 120 g',d.getElementById('ftot').textContent==='120 g');click('[data-x=add]');
   click('[data-a=meals]');inp(d.getElementById('mlname'),'Frühstück');click('[data-x=save]');click('[data-x=book]');check('Mahlzeit gebucht',store().macros[Object.keys(store().macros)[0]].length===4);
-  click('[data-a=water]');check('Wasser',/0,25/.test(d.querySelector('.water .num').textContent));
+  click('[data-a=search]');inp(d.getElementById('fq'),'Wasser');await sleep(50);click('#fres .food');check('Getränk: Wasser-Umschalter aktiv',/Zählt als Wasser/.test(d.querySelector('#sheet').textContent));click('[data-x=port][data-i="1"]');click('[data-x=add]');check('500 ml auf Wasserzähler',/0,50/.test(d.querySelector('.water .num').textContent));
+  click('[data-a=water]');check('Wasser +250',/0,75/.test(d.querySelector('.water .num').textContent));
   click('#recent .food');check('Zuletzt-Liste öffnet Menge',!!d.getElementById('fcalc'));click('[data-x=edit]');click('[data-x=close]');
   // Übungsverwaltung
   click('[data-tab=plans]');click('[data-a=settings]');click('[data-x=exmgr]');click('[data-x=pick]');inp(d.getElementById('exn'),'Bankdrücken');click('[data-x=rename]');

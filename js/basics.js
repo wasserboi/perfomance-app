@@ -28,10 +28,10 @@ export const BASICS=[
  // Fette & Snacks
  B('Olivenöl',0,0,100,884,'ml','Öl'),B('Rapsöl',0,0,100,884,'ml','Öl'),B('Erdnussbutter',25,12,50,600,'g','Peanut Butter'),B('Mandeln',21,6,53,600,'g','Nüsse'),B('Walnüsse',15,6,65,690,'g','Nüsse'),B('Cashews',18,30,44,570,'g','Nüsse'),B('Erdnüsse',26,8,50,580,'g','Nüsse'),
  B('Honig',0.4,82,0,330),B('Zucker',0,100,0,400),B('Marmelade',0.5,60,0.2,250,'g','Konfitüre'),B('Nutella',6,57,31,540,'g','Nuss-Nougat-Creme'),B('Zartbitterschokolade 70 %',8,35,42,560,'g','Schokolade'),B('Vollmilchschokolade',7,55,32,540,'g','Schokolade'),
- B('Chips',6,50,32,530,'g','Kartoffelchips'),B('Proteinriegel (typisch)',30,25,10,330,'g','Riegel'),B('Cola',0,10.6,0,42,'ml','Softdrink'),B('Bier',0.5,3,0,43,'ml'),B('Orangensaft',0.7,9,0.2,45,'ml','Saft'),
+ B('Chips',6,50,32,530,'g','Kartoffelchips'),B('Proteinriegel (typisch)',30,25,10,330,'g','Riegel'),B('Cola',0,10.6,0,42,'ml','Softdrink'),B('Bier',0.5,3,0,43,'ml'),B('Orangensaft',0.7,9,0.2,45,'ml','Saft'),B('Wasser',0,0,0,0,'ml','Mineralwasser Leitungswasser stilles'),
 ];
 const norm=s=>s.toLowerCase().replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss');
 // Trefferqualität: 3 = Wortanfang im Namen, 2 = Wort im Alias, 1 = Teilstring
 export function score(item,q){const nq=norm(q).split(/\s+/).filter(Boolean);if(!nq.length)return 0;const name=norm(item.name),aka=norm(item.aka||''),brand=norm(item.brand||'');let s=0;
-  for(const t of nq){const w=new RegExp('(^|[^a-z])'+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));if(w.test(name))s+=3;else if(w.test(aka)||w.test(brand))s+=2;else if(t.length>=4&&(name.includes(t)||aka.includes(t)))s+=1;else return 0}return s}
+  for(const t of nq){const esc=t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');const w=new RegExp('(^|[^a-z])'+esc);if(new RegExp('^'+esc).test(name))s+=5;else if(w.test(name))s+=3;else if(w.test(aka)||w.test(brand))s+=2;else if(t.length>=4&&(name.includes(t)||aka.includes(t)))s+=1;else return 0}return s}
 export function searchBasics(q){return BASICS.map(b=>[score(b,q),b]).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,10).map(x=>x[1])}

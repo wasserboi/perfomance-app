@@ -1,11 +1,13 @@
-import {S,save,uid,esc,r1,fkcal,bookFood,recentFoods} from './state.js';
+import {S,save,uid,esc,r1,fkcal,bookFood,recentFoods,isDrink,MIN} from './state.js';
 import {sheet,closeSheet,toast,el,$,confirm2,rerender} from './ui.js';
 import {searchBasics,score} from './basics.js';
 
-const OFF_FIELDS='code,product_name,product_name_de,brands,nutriments,quantity';
+const OFF_FIELDS='code,product_name,product_name_de,brands,nutriments,quantity,categories_tags';
 function offToFood(pr){const n=pr.nutriments||{};const q=(pr.quantity||'').toLowerCase();
   return{id:uid(),name:pr.product_name_de||pr.product_name||'',brand:pr.brands||'',barcode:pr.code||'',unit:/ml|\bl\b|liter/.test(q)?'ml':'g',
-    p:+n.proteins_100g||0,c:+n.carbohydrates_100g||0,f:+n.fat_100g||0,kcal:Math.round(+n['energy-kcal_100g']||0)||null}}
+    p:+n.proteins_100g||0,c:+n.carbohydrates_100g||0,f:+n.fat_100g||0,kcal:Math.round(+n['energy-kcal_100g']||0)||null,
+    mg:Math.round((+n.magnesium_100g||0)*1000)||0,ca:Math.round((+n.calcium_100g||0)*1000)||0,na:Math.round((+n.sodium_100g||0)*1000)||0,
+    drink:/beverage|water|boisson|getraenk/.test((pr.categories_tags||[]).join(','))||undefined}}
 async function offBarcode(code){const r=await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${OFF_FIELDS}`);if(!r.ok)return null;const j=await r.json();return j.status===1&&j.product?offToFood(j.product):null}
 async function offSearch(q){const r=await fetch(`https://de.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=12&fields=${OFF_FIELDS}`);if(!r.ok)return[];const j=await r.json();return(j.products||[]).map(offToFood).filter(f=>f.name&&(f.p||f.c||f.f))}
 
@@ -30,27 +32,30 @@ export function foodForm(day,f){
   <div class="field"><label class="f">Marke (optional)</label><input id="ffb" value="${esc(f.brand)}"></div>
   <div class="tiny mb2">Nährwerte pro 100 <span id="ffu">${f.unit}</span> <button class="btn ghost xs" data-x="unit">g / ml wechseln</button></div>
   <div class="grid4"><div><label class="f">Protein</label><input type="number" inputmode="decimal" id="ffp" value="${f.p||''}"></div><div><label class="f">Carbs</label><input type="number" inputmode="decimal" id="ffc" value="${f.c||''}"></div><div><label class="f">Fett</label><input type="number" inputmode="decimal" id="fff" value="${f.f||''}"></div><div><label class="f">kcal</label><input type="number" inputmode="decimal" id="ffk" value="${f.kcal||''}" placeholder="auto"></div></div>
+  <div class="grid3 mt3" id="ffmin" ${isDrink(f)||f.mg||f.ca||f.na?'':'hidden'}>${[['mg','Magnesium'],['ca','Calcium'],['na','Natrium']].map(([k,l])=>`<div><label class="f">${l} (mg/100 ${f.unit})</label><input type="number" inputmode="decimal" id="ff_${k}" value="${f[k]||''}"></div>`).join('')}</div>
   <div class="row mt3"><div class="grow"><label class="f">Portion (optional), z. B. Riegel</label><input id="ffpn" value="${esc(f.portions?.[0]?.n||'')}"></div><div style="width:90px"><label class="f">Gramm/ml</label><input type="number" inputmode="decimal" id="ffpg" value="${f.portions?.[0]?.g||''}"></div></div>
   <div class="grid2 mt4"><button class="btn" data-x="close">Abbrechen</button><button class="btn primary" data-x="save">Speichern & Menge</button></div>
   ${S.foods.some(x=>x.id===f.id)?'<button class="btn ghost danger wide mt2" data-x="del">Produkt löschen</button>':''}`,{
     unit:()=>{f.unit=f.unit==='g'?'ml':'g';el('ffu').textContent=f.unit},close:closeSheet,
     del:()=>{S.foods=S.foods.filter(x=>x.id!==f.id);save();closeSheet();rerender()},
-    save:()=>{f.name=el('ffn').value.trim();f.brand=el('ffb').value.trim();['p','c','f'].forEach(k=>f[k]=+el('ff'+k).value||0);f.kcal=+el('ffk').value||null;const pn=el('ffpn').value.trim(),pg=+el('ffpg').value;f.portions=pn&&pg?[{n:pn,g:pg}].concat((f.portions||[]).slice(1)):(f.portions||[]).slice(1);if(!f.name){toast('Name fehlt');return}amountSheet(day,f)}});
+    save:()=>{f.name=el('ffn').value.trim();f.brand=el('ffb').value.trim();['p','c','f'].forEach(k=>f[k]=+el('ff'+k).value||0);f.kcal=+el('ffk').value||null;MIN.forEach(k=>{const e=el('ff_'+k);if(e)f[k]=+e.value||0});const pn=el('ffpn').value.trim(),pg=+el('ffpg').value;f.portions=pn&&pg?[{n:pn,g:pg}].concat((f.portions||[]).slice(1)):(f.portions||[]).slice(1);if(!f.name){toast('Name fehlt');return}amountSheet(day,f)}});
 }
 export function amountSheet(day,f){
-  f=Object.assign({id:uid(),unit:'g'},f);const ports=f.portions||[];let pi=ports.length?Math.min(1,ports.length-1):-1,cnt=1,mode=ports.length?'portion':'gram';
+  f=Object.assign({id:uid(),unit:'g'},f);let ports=f.portions||[];if(!ports.length&&(isDrink(f)||f.drink))ports=[{n:'Glas',g:250},{n:'Flasche 0,5 l',g:500},{n:'Flasche 0,75 l',g:750},{n:'Flasche 1 l',g:1000}];let pi=ports.length?Math.min(1,ports.length-1):-1,cnt=1,mode=ports.length?'portion':'gram';
   const amount=()=>mode==='portion'?ports[pi].g*cnt:(+el('fam')?.value||0);
   const calc=()=>{const a=amount(),m=k=>f[k]*a/100;el('fcalc').innerHTML=`<div><b>${Math.round(fkcal(f)*a/100)}</b><small>kcal</small></div><div><b>${r1(m('p'))}</b><small>Protein</small></div><div><b>${r1(m('c'))}</b><small>Carbs</small></div><div><b>${r1(m('f'))}</b><small>Fett</small></div>`;const t=el('ftot');if(t)t.textContent=a+' '+f.unit};
   const body=()=>mode==='portion'?`<div class="mb2">${ports.map((po,i)=>`<button class="chip ${i===pi?'on':''}" data-x="port" data-i="${i}">${esc(po.n)} <span class="tiny">${po.g} ${f.unit}</span></button>`).join('')}</div>
     <div class="row"><button class="btn" data-x="cnt" data-d="-1" style="width:56px">−</button><div class="grow big num" style="text-align:center;font-size:30px" id="fcnt">${cnt}</div><button class="btn" data-x="cnt" data-d="1" style="width:56px">+</button><div class="muted num" id="ftot" style="min-width:64px;text-align:right"></div></div>`
     :`<div class="amt"><input type="number" inputmode="decimal" id="fam" value="${amount()||100}"><span>${f.unit}</span></div><div class="mt2">${[50,100,150,200,250,300,500].map(v=>`<button class="chip" data-x="q" data-v="${v}">${v}</button>`).join('')}</div>`;
-  const draw=()=>{sheet(`<h3>${esc(f.name)}</h3><div class="tiny mb3">${esc(f.brand||'')}${f.brand?' · ':''}pro 100 ${f.unit}: ${fkcal(f)} kcal · P ${r1(f.p)} · C ${r1(f.c)} · F ${r1(f.f)}</div>
+  const drink=isDrink(f)||f.drink;let asWater=drink;
+  const draw=()=>{sheet(`<h3>${esc(f.name)}</h3><div class="tiny mb3">${esc(f.brand||'')}${f.brand?' · ':''}pro 100 ${f.unit}: ${fkcal(f)} kcal · P ${r1(f.p)} · C ${r1(f.c)} · F ${r1(f.f)}${f.mg||f.ca||f.na?` · Mg ${f.mg||0} · Ca ${f.ca||0} · Na ${f.na||0} mg`:''}</div>
+    ${drink?`<button class="btn sm wide mb3 ${asWater?'primary':''}" data-x="water">${asWater?'✓ Zählt als Wasser':'Als Wasser zählen'}</button>`:''}
     ${ports.length?`<div class="grid2 mb3"><button class="btn sm ${mode==='portion'?'primary':''}" data-x="mode" data-m="portion">Portion</button><button class="btn sm ${mode==='gram'?'primary':''}" data-x="mode" data-m="gram">${f.unit==='ml'?'Milliliter':'Gramm'}</button></div>`:''}
     <div id="fbody">${body()}</div><div class="calc" id="fcalc"></div>
     <div class="grid2"><button class="btn" data-x="edit">Bearbeiten</button><button class="btn primary" data-x="add">Hinzufügen</button></div>`,{
-    mode:b=>{mode=b.dataset.m;draw()},port:b=>{pi=+b.dataset.i;draw()},cnt:b=>{cnt=Math.max(1,cnt+ +b.dataset.d);el('fcnt').textContent=cnt;calc()},
+    water:()=>{asWater=!asWater;draw()},mode:b=>{mode=b.dataset.m;draw()},port:b=>{pi=+b.dataset.i;draw()},cnt:b=>{cnt=Math.max(1,cnt+ +b.dataset.d);el('fcnt').textContent=cnt;calc()},
     q:b=>{el('fam').value=b.dataset.v;calc()},edit:()=>foodForm(day,f),
-    add:()=>{const amt=amount();if(!amt){toast('Menge eingeben');return}bookFood(day,f,amt);closeSheet();rerender();toast('Hinzugefügt')}});
+    add:()=>{const amt=amount();if(!amt){toast('Menge eingeben');return}bookFood(day,f,amt,asWater);closeSheet();rerender();toast(asWater?'Hinzugefügt · '+amt+' ml Wasser':'Hinzugefügt')}});
     calc();const inp=el('fam');if(inp){inp.oninput=calc;setTimeout(()=>{inp.focus();inp.select()},50)}};
   draw();
 }

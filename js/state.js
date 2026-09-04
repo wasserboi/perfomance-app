@@ -1,5 +1,5 @@
 // ===== Konstanten =====
-export const APP_VERSION='18';
+export const APP_VERSION='19';
 export const KEY='perf.v1';
 export const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];
 export const TYPES=['Freihand','Maschine','Kabelturm'];
@@ -110,7 +110,13 @@ export function finishWorkout(){
 export const fkcal=f=>f.kcal||Math.round(f.p*4+f.c*4+f.f*9);
 export const kcalOf=o=>o.kcal||Math.round(o.p*4+o.c*4+o.f*9);
 export function dayIsTrain(d){if(S.dayType[d]!==undefined)return S.dayType[d];return S.workouts.some(w=>w.date.slice(0,10)===d)||(S.active&&d===today())}
-export function bookFood(day,f,amt){const i=S.foods.findIndex(x=>x.id===f.id);f.used=Date.now();i<0?S.foods.push(f):S.foods[i]=f;
-  (S.macros[day]=S.macros[day]||[]).push({n:f.name,foodId:f.id,amount:amt,unit:f.unit||'g',p:r1(f.p*amt/100),c:r1(f.c*amt/100),f:r1(f.f*amt/100),kcal:Math.round(fkcal(f)*amt/100)});save()}
+export const MIN=['mg','ca','na'];// Magnesium, Calcium, Natrium in mg pro 100 ml/g
+export function bookFood(day,f,amt,asWater){const i=S.foods.findIndex(x=>x.id===f.id);f.used=Date.now();i<0?S.foods.push(f):S.foods[i]=f;
+  const e={n:f.name,foodId:f.id,amount:amt,unit:f.unit||'g',p:r1(f.p*amt/100),c:r1(f.c*amt/100),f:r1(f.f*amt/100),kcal:Math.round(fkcal(f)*amt/100)};
+  MIN.forEach(k=>{if(f[k])e[k]=Math.round(f[k]*amt/100)});
+  if(asWater){e.water=amt;S.water[day]=(S.water[day]||0)+amt}
+  (S.macros[day]=S.macros[day]||[]).push(e);save()}
+export const isDrink=f=>(f.unit==='ml')&&fkcal(f)<=5;
+export function dayMinerals(day){return (S.macros[day]||[]).reduce((a,i)=>{MIN.forEach(k=>a[k]=(a[k]||0)+(i[k]||0));return a},{})}
 export const recentFoods=()=>[...S.foods].sort((a,b)=>(b.used||0)-(a.used||0));
 export function trend(ws,k=0.3){let e=null;return ws.map(x=>{e=e===null?x.w:e+k*(x.w-e);return{d:x.d,y:Math.round(e*100)/100}})}

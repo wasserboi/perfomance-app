@@ -1,4 +1,4 @@
-import {S,save,today,fmtDL,esc,r1,kcalOf,dayIsTrain,recentFoods} from '../state.js';
+import {S,save,today,fmtDL,esc,r1,kcalOf,dayIsTrain,recentFoods,dayMinerals} from '../state.js';
 import {sheet,closeSheet,toast,rerender,el} from '../ui.js';
 import {searchSheet,scanSheet,foodForm,mealsSheet,amountSheet,foodRow} from '../food.js';
 
@@ -23,8 +23,9 @@ function html(){
     <div class="row between"><button class="btn ghost sm" data-a="goals">Ziele anpassen</button><button class="btn sm" data-a="daytype">${isT?'Trainingstag':'Ruhetag'} ⇄</button></div></div>
   ${weekly(g,gk)}
   <div class="card water"><span class="muted" style="min-width:60px">Wasser</span><div class="bar"><i class="water" style="width:${Math.min(100,ml/3000*100)}%"></i></div><span class="num tiny right" style="min-width:56px">${(ml/1000).toFixed(2).replace('.',',')} l</span><button class="btn sm" data-a="water" data-v="250">+250</button><button class="btn sm" data-a="water" data-v="500">+500</button><button class="btn ghost sm" data-a="water" data-v="-250">−</button></div>
+  ${(()=>{const m=dayMinerals(day);return m.mg||m.ca||m.na?`<div class="tiny mb2" style="margin-left:2px">Mineralien heute: Mg ${m.mg||0} mg · Ca ${m.ca||0} mg · Na ${m.na||0} mg</div>`:''})()}
   <div class="grid2 mb2"><button class="btn primary" data-a="scan">Scannen</button><button class="btn" data-a="search">Suchen</button><button class="btn" data-a="meals">Mahlzeit</button><button class="btn" data-a="new">Manuell</button></div>
-  ${items.length?`<div class="card list">${items.map((i,idx)=>`<div class="item"><div class="grow"><div>${esc(i.n)||'<span class="tiny">Ohne Namen</span>'}${i.amount?` <span class="tiny">${i.amount} ${i.unit||'g'}</span>`:''}</div><div class="tiny num">P ${r1(i.p)} · C ${r1(i.c)} · F ${r1(i.f)} · ${kcalOf(i)} kcal</div></div><button class="btn ghost sm" data-a="rm" data-i="${idx}">✕</button></div>`).join('')}</div>`:'<div class="empty">Noch nichts eingetragen.</div>'}
+  ${items.length?`<div class="card list">${items.map((i,idx)=>`<div class="item"><div class="grow"><div>${esc(i.n)||'<span class="tiny">Ohne Namen</span>'}${i.amount?` <span class="tiny">${i.amount} ${i.unit||'g'}</span>`:''}${i.water?' <span class="tag">Wasser</span>':''}</div><div class="tiny num">P ${r1(i.p)} · C ${r1(i.c)} · F ${r1(i.f)} · ${kcalOf(i)} kcal</div></div><button class="btn ghost sm" data-a="rm" data-i="${idx}">✕</button></div>`).join('')}</div>`:'<div class="empty">Noch nichts eingetragen.</div>'}
   ${S.foods.length?`<h2>Zuletzt verwendet</h2><div class="card" id="recent">${recentFoods().slice(0,8).map(f=>foodRow(f).replace('data-x="pick"','data-a="pick"')).join('')}</div>`:''}`;
 }
 function goalsSheet(){
@@ -44,5 +45,5 @@ export default{html,
     if(a==='applykcal'){const v=+d.v;[S.goals,S.goalsRest].filter(Boolean).forEach(g=>{const cf=g.c*4+g.f*9;if(cf<=0)return;const k=(cf+v)/cf;g.c=Math.max(50,Math.round(g.c*k));g.f=Math.max(40,Math.round(g.f*k))});save();rerender();toast('Ziele angepasst – Protein bleibt')}
     if(a==='scan')scanSheet(day);if(a==='search')searchSheet(day);if(a==='new')foodForm(day,{});if(a==='meals')mealsSheet(day);
     if(a==='pick')amountSheet(day,S.foods.find(x=>x.id===d.id));
-    if(a==='rm'){S.macros[day].splice(+d.i,1);save();rerender()}
+    if(a==='rm'){const it=S.macros[day][+d.i];if(it.water)S.water[day]=Math.max(0,(S.water[day]||0)-it.water);S.macros[day].splice(+d.i,1);save();rerender()}
   }};
