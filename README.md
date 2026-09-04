@@ -17,12 +17,18 @@ Läuft komplett lokal im Browser, Daten bleiben auf dem Gerät (localStorage).
 Pläne → "Backup exportieren" speichert alle Daten als JSON (z. B. in iCloud Drive).
 Wenn du die Safari-Website-Daten löschst oder die App vom Home-Bildschirm entfernst, sind die Daten weg – also regelmäßig exportieren.
 
-## Dateien
+## Struktur
 
-- `index.html` – die gesamte App
-- `manifest.json` – Name, Icon, Vollbild
+- `index.html` – Shell (Navigation, Timer, Sheet)
+- `css/app.css` – Design-Tokens und Komponenten
+- `js/state.js` – Datenmodell, Speichern, Trainings-/Ernährungslogik
+- `js/ui.js` – Sheet, Toast, Tab-Rendering
+- `js/sync.js` – Cloud-Backup (Git-Data-API)
+- `js/photos.js` – Fotos (IndexedDB + Repo-Blobs)
+- `js/charts.js`, `js/timer.js`, `js/food.js`
+- `js/views/*.js` – je ein Modul pro Tab
+- `test/test.js` – Kernflows in jsdom (`npm install && npm test`)
 - `sw.js` – Service Worker fürs Offline-Caching
-- `icon-180.png`, `icon-512.png` – Home-Screen-Icon
 
 ## Cloud-Backup
 

@@ -1,0 +1,1 @@
+{"name":"performance-app","private":true,"type":"commonjs","scripts":{"test":"node test/test.js"},"devDependencies":{"jsdom":"*","fake-indexeddb":"*"}}
