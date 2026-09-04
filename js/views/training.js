@@ -32,24 +32,45 @@ function overview(){
 
 function active(){
   const a=S.active,min=Math.round((Date.now()-a.start)/60000);
-  return `<div class="row between" style="margin:6px 0 14px"><h1 class="sm" style="margin:0">${esc(a.name)}<small>${min} min · ${de(vol(a))} kg${a.basedOn?' · Basis: letztes Training':''}</small></h1><button class="btn ghost danger sm" data-a="cancel">Abbrechen</button></div>
-  ${a.exercises.map((ex,ei)=>{const prev=lastSets(ex.name);return`<div class="card ex" data-row="${ei}">
-    <div class="row between top"><div class="grow"><div class="tags">${ex.main?'<span class="tag main">Main</span>':''}${ex.type?`<span class="tag">${ex.type}</span>`:''}${ex.sug?`<span class="sug">↑ +${String(ex.sug).replace('.',',')} kg</span>`:''}</div><div class="name">${esc(ex.name)}</div></div><div class="ord"><button class="icon" data-a="up" data-i="${ei}" ${ei===0?'disabled':''} aria-label="Nach oben">▲</button><button class="icon" data-a="down" data-i="${ei}" ${ei===a.exercises.length-1?'disabled':''} aria-label="Nach unten">▼</button></div><button class="icon" data-a="note" data-i="${ei}">✎</button><button class="icon" data-a="rmex" data-i="${ei}">✕</button></div>
-    ${ex.main?`<div class="stagebar">${STAGES.map((c,i)=>`<span class="${i===ex.stage?'on':i<ex.stage?'ok':''}">${c.sets}×${c.reps}</span>`).join('')}</div><div class="prev">Ziel ${STAGES[ex.stage].sets} × ${STAGES[ex.stage].reps} mit ${ex.sets.find(s=>!s.wu)?.w} kg</div>`:`<div class="prev">${prev?'Letztes Mal: '+prev.slice(0,6).map(s=>s.w+'×'+s.r).join(', ')+(prev.length>6?' …':''):'Erstes Mal'}${ex.targetReps?' · Ziel '+ex.targetReps+' Reps':''}</div>`}
+  const doneSets=a.exercises.reduce((n,e)=>n+e.sets.filter(s=>s.done&&!s.wu).length,0),allSets=a.exercises.reduce((n,e)=>n+e.sets.filter(s=>!s.wu).length,0);
+  return `<div class="row between" style="margin:6px 0 6px"><h1 class="sm" style="margin:0">${esc(a.name)}<small>${min} min · ${de(vol(a))} kg · ${doneSets}/${allSets} Sätze</small></h1><button class="btn ghost danger sm" data-a="cancel">Abbrechen</button></div>
+  <div class="bar mb3"><i class="k" style="width:${allSets?doneSets/allSets*100:0}%"></i></div>
+  ${a.exercises.map((ex,ei)=>{const prev=lastSets(ex.name);const open=ex.sets.some(s=>!s.done);
+    return`<div class="card ex ${open?'':'ex-done'}" data-row="${ei}">
+    <div class="exhead"><div class="grow"><div class="name">${esc(ex.name)}</div><div class="tags mt1">${ex.main?'<span class="tag main">Main</span>':''}${ex.type?`<span class="tag">${ex.type}</span>`:''}${ex.sug?`<span class="sug">↑ +${String(ex.sug).replace('.',',')} kg</span>`:''}${S.exNotes[ex.name]?'<span class="tag note-tag">✎</span>':''}</div></div>
+      <button class="icon more" data-a="menu" data-i="${ei}" aria-label="Optionen">···</button></div>
+    ${ex.main?`<div class="stagebar">${STAGES.map((c,i)=>`<span class="${i===ex.stage?'on':i<ex.stage?'ok':''}">${c.sets}×${c.reps}</span>`).join('')}</div>`:''}
+    <div class="prev">${ex.main?`Ziel ${STAGES[ex.stage].sets} × ${STAGES[ex.stage].reps} mit ${ex.sets.find(s=>!s.wu)?.w} kg`:(prev?'Letztes Mal '+prev.slice(0,4).map(s=>s.w+'×'+s.r).join(' · ')+(prev.length>4?' …':''):'Erstes Mal')+(ex.targetReps?' · Ziel '+ex.targetReps+' Reps':'')}</div>
     ${S.exNotes[ex.name]?`<div class="note">${esc(S.exNotes[ex.name])}</div>`:''}
-    <div class="sets"><div class="h">Satz</div><div class="h">kg</div><div class="h">Reps</div><div class="h"></div>
-    ${ex.sets.map((s,si)=>`<div class="n ${s.wu?'wu':''}" data-a="wu" data-i="${ei}" data-s="${si}">${s.wu?'W':si+1}</div>
-      <div class="cell ${s.done?'done':''}"><button data-a="adj" data-f="w" data-d="-2.5" data-i="${ei}" data-s="${si}">−</button><input type="number" inputmode="decimal" step="0.5" value="${s.w||''}" placeholder="${prev?.[si]?.w??''}" data-f="w" data-i="${ei}" data-s="${si}"><button data-a="adj" data-f="w" data-d="2.5" data-i="${ei}" data-s="${si}">+</button></div>
-      <div class="cell ${s.done?'done':''}"><button data-a="adj" data-f="r" data-d="-1" data-i="${ei}" data-s="${si}">−</button><input type="number" inputmode="numeric" value="${s.r||''}" placeholder="${prev?.[si]?.r??ex.targetReps??''}" data-f="r" data-i="${ei}" data-s="${si}"><button data-a="adj" data-f="r" data-d="1" data-i="${ei}" data-s="${si}">+</button></div>
-      <button class="ok ${s.done?'done':''}" data-a="done" data-i="${ei}" data-s="${si}">${svgCheck}</button>`).join('')}
+    <div class="setbox">
+      <div class="sets">
+      ${ex.sets.map((s,si)=>`<div class="n ${s.wu?'wu':''}" data-a="wu" data-i="${ei}" data-s="${si}">${s.wu?'W':si+1}</div>
+        <div class="cell ${s.done?'done':''}"><button data-a="adj" data-f="w" data-d="-2.5" data-i="${ei}" data-s="${si}">−</button><input type="number" inputmode="decimal" step="0.5" value="${s.w||''}" placeholder="${prev?.[si]?.w??''}" data-f="w" data-i="${ei}" data-s="${si}"><button data-a="adj" data-f="w" data-d="2.5" data-i="${ei}" data-s="${si}">+</button></div>
+        <div class="cell ${s.done?'done':''}"><button data-a="adj" data-f="r" data-d="-1" data-i="${ei}" data-s="${si}">−</button><input type="number" inputmode="numeric" value="${s.r||''}" placeholder="${prev?.[si]?.r??ex.targetReps??''}" data-f="r" data-i="${ei}" data-s="${si}"><button data-a="adj" data-f="r" data-d="1" data-i="${ei}" data-s="${si}">+</button></div>
+        <button class="ok ${s.done?'done':''}" data-a="done" data-i="${ei}" data-s="${si}">${svgCheck}</button>`).join('')}
+      </div>
+      <button class="addset" data-a="addset" data-i="${ei}">+ Satz</button>
     </div>
-    <div class="row mt3"><button class="btn sm" data-a="addset" data-i="${ei}">+ Satz</button><button class="btn ghost sm" data-a="addwu" data-i="${ei}">+ Aufwärmsatz</button>${ex.sets.length>1?`<button class="btn ghost sm" data-a="rmset" data-i="${ei}">− Satz</button>`:''}</div>
   </div>`}).join('')}
-  <div class="tiny mb3">Satznummer antippen = Aufwärmsatz (zählt nicht für Score und Volumen).</div>
-  <button class="btn wide mb2" data-a="addex">+ Übung hinzufügen</button>
-  <button class="btn wide primary" data-a="finish">Training beenden</button>`;
+  <div class="grid2 mt3"><button class="btn" data-a="addex">+ Übung</button><button class="btn primary" data-a="finish">Beenden</button></div>`;
 }
-
+function exMenu(ei){
+  const ex=S.active.exercises[ei],n=S.active.exercises.length;
+  sheet(`<h3>${esc(ex.name)}</h3>
+    <div class="grid2"><button class="btn" data-x="up" ${ei===0?'disabled':''}>▲ Nach oben</button><button class="btn" data-x="down" ${ei===n-1?'disabled':''}>▼ Nach unten</button></div>
+    <button class="btn wide mt2" data-x="wu">Aufwärmsatz hinzufügen</button>
+    <button class="btn wide mt2" data-x="rmset" ${ex.sets.length<2?'disabled':''}>Letzten Satz entfernen</button>
+    <button class="btn wide mt2" data-x="note">Notiz ${S.exNotes[ex.name]?'bearbeiten':'hinzufügen'}</button>
+    <button class="btn ghost danger wide mt2" data-x="rm">Übung entfernen</button>
+    <button class="btn wide mt3" data-x="close">Schließen</button>`,{
+    close:closeSheet,
+    up:()=>{moveItem(S.active.exercises,ei,ei-1);save();closeSheet();rerender()},
+    down:()=>{moveItem(S.active.exercises,ei,ei+1);save();closeSheet();rerender()},
+    wu:()=>{ex.sets.unshift({w:0,r:0,done:false,wu:true});save();closeSheet();rerender()},
+    rmset:()=>{ex.sets.pop();save();closeSheet();rerender()},
+    rm:()=>{if(!confirm2('Übung entfernen?'))return;S.active.exercises.splice(ei,1);save();closeSheet();rerender()},
+    note:()=>{const nm=ex.name;closeSheet();prompt2(nm,v=>{if(v)S.exNotes[nm]=v;else delete S.exNotes[nm];save();rerender()},'z. B. Sitz 4, enger Griff',S.exNotes[nm]||'')}});
+}
 export function summarySheet(id){
   const w=S.workouts.find(x=>x.id===id);if(!w)return;const hist=planWorkouts(w.planId,w.name),idx=hist.findIndex(x=>x.id===id);
   const prev=idx>0?hist[idx-1]:null,first=idx>0?hist[0]:null,cl=compare(w,prev),cf=idx>1?compare(w,first):null,prs=prsFor(w),mr=w.mainRes;
@@ -79,14 +100,10 @@ export default{
         s.done=true;startTimer(S.settings.rest);if(navigator.vibrate)navigator.vibrate(30);
         if(!s.wu){const b=allTimeBest(A.exercises[d.i].name);if(b.bw&&(s.w>b.bw||e1rm(s.w,s.r)>b.brm+0.5))toast('PR! '+s.w+' kg × '+s.r)}}
       else s.done=false;save();rerender()}
-    if(a==='up'||a==='down'){const i=+d.i,to=a==='up'?i-1:i+1;moveItem(A.exercises,i,to);save();rerender()}
+    if(a==='menu')exMenu(+d.i);
     if(a==='wu'){const s=A.exercises[d.i].sets[d.s];s.wu=!s.wu;save();rerender()}
-    if(a==='addwu'){A.exercises[d.i].sets.unshift({w:0,r:0,done:false,wu:true});save();rerender()}
     if(a==='addset'){const ss=A.exercises[d.i].sets,l=ss[ss.length-1];ss.push({w:l?l.w:0,r:l?l.r:0,done:false});save();rerender()}
-    if(a==='rmset'){A.exercises[d.i].sets.pop();save();rerender()}
-    if(a==='rmex'){A.exercises.splice(+d.i,1);save();rerender()}
     if(a==='addex')prompt2('Übung',n=>{if(!n)return;A.exercises.push({name:n,sets:[0,1,2].map(()=>({w:0,r:0,done:false}))});save();rerender()},'z. B. Bankdrücken');
-    if(a==='note'){const n=A.exercises[d.i].name;prompt2(n,v=>{if(v)S.exNotes[n]=v;else delete S.exNotes[n];save();rerender()},'z. B. Sitz 4, enger Griff',S.exNotes[n]||'')}
   },
   input(t){if(t.dataset.f&&S.active){S.active.exercises[t.dataset.i].sets[t.dataset.s][t.dataset.f]=+t.value||0;save()}}
 };

@@ -131,25 +131,32 @@ nav svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;st
 .week{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2);margin-bottom:var(--s2)}
 .planbtn{display:flex;justify-content:space-between;align-items:center;width:100%;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r2);padding:14px var(--s4);font-weight:600;min-height:52px}
 .planbtn .tiny.stale{color:var(--warn)}
-.ex{margin-bottom:var(--s3)}
+.ex{margin-bottom:var(--s3);padding-bottom:var(--s2)}
+.ex.ex-done{opacity:.72}
+.exhead{display:flex;align-items:flex-start;gap:var(--s2)}
 .ex .name{font-weight:600;font-size:18px;line-height:1.25}
-.ex .tags{margin-bottom:var(--s1)}
-.ex .prev{color:var(--ink3);font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ex .tags{display:flex;flex-wrap:wrap;gap:4px}
+.ex .tags .tag,.ex .tags .sug{margin:0}
+.tag.note-tag{color:var(--warn)}
+.icon.more{font-size:18px;letter-spacing:1px;background:var(--bg3);color:var(--ink2)}
+.ex .prev{color:var(--ink3);font-size:13px;margin-top:6px}
 .ex .note{color:var(--warn);font-size:13px;margin-top:var(--s1)}
-.stagebar{display:flex;gap:6px;margin:var(--s2) 0 var(--s1)}
+.stagebar{display:flex;gap:6px;margin:var(--s3) 0 0}
 .stagebar span{flex:1;text-align:center;font-size:12px;padding:6px 0;border-radius:8px;background:var(--bg3);color:var(--ink3)}
 .stagebar span.on{background:var(--accent);color:#fff;font-weight:600}.stagebar span.ok{color:var(--good)}
-.sets{margin-top:var(--s2);display:grid;grid-template-columns:28px 1fr 1fr 46px;gap:var(--s2);align-items:center}
-.sets .h{font-size:12px;color:var(--ink3);text-align:center}
-.sets .n{color:var(--ink3);text-align:center;font-size:14px;padding:6px 0;cursor:pointer}
+.setbox{background:var(--bg3);border-radius:var(--r2);padding:var(--s3);margin-top:var(--s3)}
+.sets{display:grid;grid-template-columns:22px 1fr 1fr 44px;gap:6px;align-items:center}
+.sets .n{color:var(--ink3);text-align:center;font-size:13px;padding:4px 0;cursor:pointer}
 .sets .n.wu{color:var(--warn);font-weight:700}
-.sets .cell{display:flex;align-items:center;gap:2px}
-.sets .cell input{text-align:center;padding:10px 2px;font-size:17px;min-width:0}
-.sets .cell button{width:26px;flex:none;height:46px;color:var(--ink3);font-size:18px;font-weight:600}
-.sets .ok{width:46px;height:46px;border-radius:12px;background:var(--bg3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+.sets .cell{display:flex;align-items:center;gap:1px;background:var(--bg2);border-radius:10px}
+.sets .cell input{text-align:center;padding:9px 0;font-size:17px;min-width:0;background:none;border:none;border-radius:0}
+.sets .cell input:focus{background:var(--bg);border-radius:6px}
+.sets .cell button{width:28px;flex:none;height:42px;color:var(--ink3);font-size:17px;font-weight:600}
+.sets .cell.done input{color:var(--ink2)}
+.sets .ok{width:44px;height:42px;border-radius:10px;background:var(--bg2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink3)}
 .sets .ok.done{background:var(--good);border-color:var(--good);color:#0f2a1c}
-.sets .ok svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
-.sets .done input{color:var(--ink2)}
+.sets .ok svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.addset{width:100%;margin-top:var(--s2);padding:8px;border-radius:9px;color:var(--ink2);font-size:14px;font-weight:600;background:var(--bg2)}
 
 /* ===== Plans ===== */
 .prow{background:var(--bg3);border-radius:var(--r2);padding:10px;margin-bottom:var(--s2)}

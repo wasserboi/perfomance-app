@@ -59,8 +59,8 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
   // Reihenfolge
   {const {moveItem}=await import(path.join(root,'js/views/plans.js'));const a=['A','B','C'];moveItem(a,0,2);check('moveItem verschiebt',a.join('')==='BCA');}
   click('[data-a=edit][data-id]');click('[data-x=down][data-i="0"]');check('Plan: Übung runter',d.querySelectorAll('[data-pf=name]')[0].value==='Flys');click('[data-x=up][data-i="1"]');check('Plan: Übung hoch',d.querySelectorAll('[data-pf=name]')[0].value==='Bank');click('[data-x=close]');
-  click('[data-tab=log]');click('[data-a=start][data-id]');click('#app [data-a=down][data-i="0"]');check('Training: Übung runter',store().active.exercises[0].name==='Flys');
-  click('#app [data-a=up][data-i="1"]');check('Training: Übung hoch',store().active.exercises[0].name==='Bank');
+  click('[data-tab=log]');click('[data-a=start][data-id]');click('#app [data-a=menu][data-i="0"]');click('[data-x=down]');check('Training: Übung runter',store().active.exercises[0].name==='Flys');
+  click('#app [data-a=menu][data-i="1"]');click('[data-x=up]');check('Training: Übung hoch',store().active.exercises[0].name==='Bank');
   click('[data-a=cancel]');
   // Training: 10x3 ok -> 7x5
   const session=(okSets,flysKg)=>{click('[data-tab=log]');click('[data-a=start][data-id]');clickAll('[data-a=done]',okSets);
