@@ -69,7 +69,7 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
   click('[data-a=cancel]');
   t=session(5);check('PR-Badge in Auswertung (100×5 > 100×3)',/PR 1RM/.test(t));
   t=session(5);check('Deload nach 2 Fehlversuchen',/95 kg – Deload/.test(t));
-  check('Kalender/Streak',/1 Woche in Folge/.test(d.querySelector('.cal+div').textContent));
+  check('Wochen-Serie in Übersicht',/Wochen in Folge/.test(d.querySelector('.week').textContent));
   // Fortschritt
   click('[data-tab=progress]');check('Fortschritt Dropdown',d.getElementById('pexSel').options.length===2);
   check('Fortschritt Standard 3M',d.querySelector('[data-a=range].on').dataset.r==='3m');click('[data-a=range][data-r=all]');check('Range wechselt',d.querySelector('[data-a=range].on').dataset.r==='all');

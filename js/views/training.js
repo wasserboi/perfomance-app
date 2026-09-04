@@ -6,19 +6,18 @@ let histN=8;
 const days=d=>Math.floor((Date.now()-new Date(d))/864e5);
 const ago=d=>{if(!d)return'noch nie';const n=days(d);return n===0?'heute':n===1?'gestern':'vor '+n+' Tagen'};
 
-function calendar(){const end=new Date();end.setHours(12,0,0,0);const start=new Date(end);start.setDate(end.getDate()-((end.getDay()+6)%7)-7*11);
-  const set=new Set(S.workouts.map(w=>w.date.slice(0,10)));let streak=0;for(let k=0;k<200;k++){const m=new Date(end);m.setDate(end.getDate()-((end.getDay()+6)%7)-7*k);let hit=false;for(let d=0;d<7;d++){const x=new Date(m);x.setDate(m.getDate()+d);if(set.has(x.toISOString().slice(0,10)))hit=true}if(hit)streak++;else break}
-  let cells='';for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){const k=d.toISOString().slice(0,10);cells+=`<i class="${set.has(k)?'on':''}${k===today()?' td':''}"></i>`}
-  return `<div class="cal">${cells}</div><div class="tiny mt2">Letzte 12 Wochen · ${streak} Woche${streak===1?'':'n'} in Folge trainiert</div>`}
-
+function weekStreak(){const set=new Set(S.workouts.map(w=>w.date.slice(0,10)));const end=new Date();end.setHours(12,0,0,0);let n=0;
+  for(let k=0;k<200;k++){const m=new Date(end);m.setDate(end.getDate()-((end.getDay()+6)%7)-7*k);let hit=false;
+    for(let i=0;i<7;i++){const x=new Date(m);x.setDate(m.getDate()+i);if(set.has(x.toISOString().slice(0,10)))hit=true}
+    if(hit)n++;else if(k>0)break}
+  return n}
 function overview(){
   const mon=new Date();mon.setHours(0,0,0,0);mon.setDate(mon.getDate()-((mon.getDay()+6)%7));const wk=S.workouts.filter(w=>new Date(w.date)>=mon);
   const recent=S.workouts.slice(-histN).reverse();
   return `<h1>Training<small>${new Date().toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'})}</small></h1>
   <h2 style="margin-top:0">Diese Woche</h2>
-  <div class="week"><div class="stat"><b>${wk.length}</b><small>Einheiten</small></div><div class="stat"><b class="num">${de(wk.reduce((a,w)=>a+vol(w),0)/1000,{maximumFractionDigits:1})}</b><small>Tonnen</small></div><div class="stat"><b class="num">${Math.round(wk.reduce((a,w)=>a+w.duration,0)/60)}</b><small>Minuten</small></div></div>
-  ${S.workouts.length?`<div class="tiny mb2" style="margin-left:2px">Insgesamt ${de(totalKg()/1000,{maximumFractionDigits:1})} t in ${S.workouts.length} Trainings seit ${new Date(S.workouts[0].date).toLocaleDateString('de-DE',{month:'short',year:'numeric'})}</div>`:''}
-  <div class="card tight">${calendar()}</div>
+  <div class="week"><div class="stat"><b>${wk.length}</b><small>Einheiten</small></div><div class="stat"><b class="num">${de(wk.reduce((a,w)=>a+vol(w),0)/1000,{maximumFractionDigits:1})}</b><small>Tonnen</small></div><div class="stat"><b class="num">${weekStreak()}</b><small>Wochen in Folge</small></div></div>
+  ${S.workouts.length?`<div class="tiny mb2" style="margin-left:2px">${Math.round(wk.reduce((a,w)=>a+w.duration,0))?Math.round(wk.reduce((a,w)=>a+w.duration,0)/60)+' Minuten diese Woche · ':''}Insgesamt ${de(totalKg()/1000,{maximumFractionDigits:1})} t in ${S.workouts.length} Trainings seit ${new Date(S.workouts[0].date).toLocaleDateString('de-DE',{month:'short',year:'numeric'})}</div>`:''}
   <h2>Workout starten</h2>
   <div class="card stack">
     ${S.plans.map(p=>{const l=planWorkouts(p.id,p.name).slice(-1)[0];return`<button class="planbtn" data-a="start" data-id="${p.id}"><span>${esc(p.name)}</span><span class="tiny ${l&&days(l.date)>7?'stale':''}">${ago(l&&l.date)}</span></button>`}).join('')}

@@ -129,9 +129,6 @@ nav svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;st
 
 /* ===== Training ===== */
 .week{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2);margin-bottom:var(--s2)}
-.cal{display:grid;grid-template-columns:repeat(12,1fr);grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:4px}
-.cal i{display:block;aspect-ratio:1;border-radius:3px;background:var(--bg3)}
-.cal i.on{background:var(--accent)}.cal i.td{box-shadow:0 0 0 1.5px var(--ink2)}
 .planbtn{display:flex;justify-content:space-between;align-items:center;width:100%;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r2);padding:14px var(--s4);font-weight:600;min-height:52px}
 .planbtn .tiny.stale{color:var(--warn)}
 .ex{margin-bottom:var(--s3)}
