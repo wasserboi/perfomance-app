@@ -1,5 +1,6 @@
 import {S,save,uid,esc,r1,fkcal,bookFood,recentFoods} from './state.js';
 import {sheet,closeSheet,toast,el,$,confirm2,rerender} from './ui.js';
+import {searchBasics,score} from './basics.js';
 
 const OFF_FIELDS='code,product_name,product_name_de,brands,nutriments,quantity';
 function offToFood(pr){const n=pr.nutriments||{};const q=(pr.quantity||'').toLowerCase();
@@ -11,14 +12,16 @@ async function offSearch(q){const r=await fetch(`https://de.openfoodfacts.org/cg
 export const foodRow=(f,src)=>`<button class="food" data-x="pick" data-id="${f.id||''}" data-src="${src===undefined?'':src}"><div class="grow"><div class="fn">${esc(f.name)}</div><div class="fb">${esc(f.brand||'')}</div></div><div class="fm num">${fkcal(f)} kcal · P ${r1(f.p)} <span class="tiny">/100 ${f.unit||'g'}</span></div></button>`;
 
 export function searchSheet(day){
-  let offCache=[],t=null;
-  sheet(`<h3>Lebensmittel suchen</h3><input id="fq" placeholder="z. B. Skyr, Haferflocken, Hähnchenbrust" autocapitalize="off" autocorrect="off"><div id="fres" class="mt2"></div>`,
-    {pick:b=>{const f=b.dataset.src!==''?offCache[+b.dataset.src]:S.foods.find(x=>x.id===b.dataset.id);amountSheet(day,f)},fnew:()=>foodForm(day,{name:el('fq').value.trim()})});
+  let offCache=[],basicCache=[],t=null;
+  sheet(`<h3>Lebensmittel suchen</h3><input id="fq" placeholder="z. B. Ei, Hähnchenbrust, Skyr" autocapitalize="off" autocorrect="off"><div id="fres" class="mt2"></div>`,
+    {pick:b=>{const src=b.dataset.src;const f=src.startsWith('b')?Object.assign({id:uid()},basicCache[+src.slice(1)]):src!==''?offCache[+src]:S.foods.find(x=>x.id===b.dataset.id);amountSheet(day,f)},fnew:()=>foodForm(day,{name:el('fq').value.trim()})});
   const inp=el('fq'),res=el('fres');setTimeout(()=>inp.focus(),50);
-  const local=q=>S.foods.filter(f=>(f.name+' '+(f.brand||'')).toLowerCase().includes(q.toLowerCase()));
-  const draw=(l,o,loading)=>{res.innerHTML=(l.length?`<div class="tiny mb2">Meine Produkte</div>${l.map(f=>foodRow(f)).join('')}`:'')+(loading?'<div class="muted" style="padding:12px 0">Suche in Open Food Facts…</div>':o.length?`<div class="tiny mt3 mb2">Open Food Facts</div>${o.map((f,i)=>foodRow(f,i)).join('')}`:'')+(!l.length&&!o.length&&!loading&&inp.value.length>1?'<div class="muted" style="padding:12px 0">Nichts gefunden.</div><button class="btn sm" data-x="fnew">Manuell anlegen</button>':'')};
-  inp.oninput=()=>{const q=inp.value.trim();clearTimeout(t);offCache=[];draw(local(q),[],q.length>1);if(q.length<2)return;t=setTimeout(async()=>{try{const o=await offSearch(q);if(inp.value.trim()!==q)return;offCache=o;draw(local(q),o,false)}catch(e){draw(local(q),[],false);toast('Keine Verbindung')}},500)};
-  draw(recentFoods().slice(0,8),[],false);
+  const local=q=>S.foods.map(f=>[score(f,q),f]).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).map(x=>x[1]);
+  const sec=(title,rows)=>rows.length?`<div class="tiny mt3 mb2">${title}</div>${rows.join('')}`:'';
+  const draw=(l,b,o,loading)=>{res.innerHTML=sec('Meine Produkte',l.map(f=>foodRow(f)))+sec('Grundnahrungsmittel',b.map((f,i)=>foodRow(f,'b'+i)))+(loading?'<div class="muted mt3" style="padding:8px 0">Suche Markenprodukte…</div>':sec('Markenprodukte (Open Food Facts)',o.map((f,i)=>foodRow(f,i))))+(!l.length&&!b.length&&!o.length&&!loading&&inp.value.length>1?'<div class="muted" style="padding:12px 0">Nichts gefunden.</div><button class="btn sm" data-x="fnew">Manuell anlegen</button>':'')};
+  inp.oninput=()=>{const q=inp.value.trim();clearTimeout(t);offCache=[];basicCache=q.length>1?searchBasics(q):[];draw(local(q),basicCache,[],q.length>1);if(q.length<2)return;
+    t=setTimeout(async()=>{try{let o=await offSearch(q);o=o.map(f=>[score(f,q),f]).sort((a,b)=>b[0]-a[0]).map(x=>x[1]);if(inp.value.trim()!==q)return;offCache=o;draw(local(q),basicCache,o,false)}catch(e){draw(local(q),basicCache,[],false)}},500)};
+  draw(recentFoods().slice(0,8),[],[],false);
 }
 export function foodForm(day,f){
   f=Object.assign({id:uid(),name:'',brand:'',barcode:'',unit:'g',p:0,c:0,f:0,kcal:null},f);

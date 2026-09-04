@@ -21,6 +21,7 @@ export async function checkUpdate(manual){
 el('upd').onclick=async()=>{try{if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.unregister()))}const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(e){}
   try{await fetch('index.html?t='+Date.now(),{cache:'reload'})}catch(e){}location.replace(location.pathname+'?t='+Date.now())};
 export const CHANGES=[
+ {v:'14',t:['Grundnahrungsmittel eingebaut (Ei, Hähnchenbrust, Reis …), bessere Suchreihenfolge']},
  {v:'13',t:['Kompletter Umbau: Module statt einer Datei, Design-System, Seiten springen nicht mehr nach oben','±-Tasten für kg und Reps im Training','Haptik beim Abhaken']},
  {v:'12',t:['Diagramme neu, Fotos in der App']},{v:'11',t:['Backup ohne Limit, Übungsverwaltung, Deload, Kalender, Timer-Fix, Autopilot, Wasser']},
  {v:'10',t:['Maße links/rechts']},{v:'9',t:['Layout aufgeräumt']},{v:'8',t:['PRs, Gesamtvolumen']},{v:'7',t:['Einstellungen im Zahnrad']},{v:'6',t:['Main-Übung 3-5-7, Übungstypen']},

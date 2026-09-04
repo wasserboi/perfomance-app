@@ -1,5 +1,5 @@
 // ===== Konstanten =====
-export const APP_VERSION='13';
+export const APP_VERSION='14';
 export const KEY='perf.v1';
 export const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];
 export const TYPES=['Freihand','Maschine','Kabelturm'];
