@@ -18,9 +18,13 @@ export async function checkUpdate(manual){
     if(j.version!==APP_VERSION){el('upd').classList.add('on');if(manual)toast('Update '+j.version+' verfügbar')}else if(manual)toast('Aktuell')}
   catch(e){if(manual)toast('Prüfung fehlgeschlagen')}
 }
-el('upd').onclick=async()=>{try{if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.unregister()))}const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(e){}
-  try{await fetch('index.html?t='+Date.now(),{cache:'reload'})}catch(e){}location.replace(location.pathname+'?t='+Date.now())};
+el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
+  try{const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(e){}
+  try{if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.unregister()))}}catch(e){}
+  try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
+  location.reload()};
 export const CHANGES=[
+ {v:'15',t:['Updates laden jetzt automatisch beim Öffnen; Update-Balken zeigt Fortschritt']},
  {v:'14',t:['Grundnahrungsmittel eingebaut (Ei, Hähnchenbrust, Reis …), bessere Suchreihenfolge']},
  {v:'13',t:['Kompletter Umbau: Module statt einer Datei, Design-System, Seiten springen nicht mehr nach oben','±-Tasten für kg und Reps im Training','Haptik beim Abhaken']},
  {v:'12',t:['Diagramme neu, Fotos in der App']},{v:'11',t:['Backup ohne Limit, Übungsverwaltung, Deload, Kalender, Timer-Fix, Autopilot, Wasser']},
@@ -31,7 +35,7 @@ export function changelogSheet(){sheet(`<h3>Was ist neu</h3><div class="list">${
 // ----- Bootstrap -----
 if(location.search)history.replaceState(null,'',location.pathname);
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
-if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 on('replace',()=>rerender());
 on('photos',()=>{if(currentTab()==='body')photos.renderGrid()});
 if(localStorage.getItem('perf.seen')!==APP_VERSION){localStorage.setItem('perf.seen',APP_VERSION);if(localStorage.getItem(KEY))setTimeout(changelogSheet,600)}
