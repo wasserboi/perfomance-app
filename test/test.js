@@ -41,8 +41,12 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
   check('Start-Tab Heute',d.querySelector('nav button.on').dataset.tab==='today');
   click('[data-a=supps]');click('[data-x=preset]');check('Standard-Stack',store().supps.length===4);click('[data-x=close]');
   check('Tagesplan-Abschnitte',d.querySelectorAll('.tick').length===5);
-  const before=d.querySelectorAll('.tick.done').length;click('.card .list [data-a=tick]:not([data-act=weight])');
-  check('Abhaken speichert',Object.keys(store().checks).length===1&&d.querySelectorAll('.tick.done').length===before+1);
+  const tsel='.card .list [data-a=tick]:not([data-act=weight])';
+  click(tsel);check('Tipp 1 = erledigt',d.querySelector(tsel).classList.contains('done'));
+  click(tsel);check('Tipp 2 = ausgelassen',d.querySelector(tsel).classList.contains('miss'));
+  check('Habit-Grid da',d.querySelectorAll('.hab i').length>=14*4);
+  click(tsel);check('Tipp 3 = offen',d.querySelector(tsel).className.trim()==='tick open'&&!Object.keys(store().checks).length);
+  click(tsel);
   click('[data-tab=plans]');
   // Sync verbinden
   click('[data-a=settings]');inp(d.getElementById('syTok'),'tok');click('[data-x=connect]');await sleep(100);

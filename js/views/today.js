@@ -1,4 +1,4 @@
-import {S,save,today,fmtD,esc,de,vol,SLOTS,slotLabel,suppDue,isChecked,setCheck,dayIsTrain,kcalOf,planWorkouts,uid,clone,trend} from '../state.js';
+import {S,save,today,fmtD,esc,de,vol,SLOTS,slotLabel,suppDue,isChecked,setCheck,checkState,cycleCheck,habit,dayIsTrain,kcalOf,planWorkouts,uid,clone,trend} from '../state.js';
 import {sheet,closeSheet,toast,rerender,setTab,el,confirm2} from '../ui.js';
 
 const WD=[['MO','Mo'],['TU','Di'],['WE','Mi'],['TH','Do'],['FR','Fr'],['SA','Sa'],['SU','So']];
@@ -6,8 +6,8 @@ const WD=[['MO','Mo'],['TU','Di'],['WE','Mi'],['TH','Do'],['FR','Fr'],['SA','Sa'
 function tasks(d){
   const list=[];
   const w=S.weights.find(x=>x.d===d);
-  list.push({id:'weight',slot:'morning',t:'Gewicht messen',sub:'Nach dem Aufstehen, nach der Toilette',done:!!w,val:w?w.w.toFixed(1)+' kg':'',act:'weight'});
-  S.supps.filter(sp=>suppDue(sp,d)).forEach(sp=>list.push({id:sp.id,slot:sp.slot,t:sp.name,sub:sp.dose||'',done:isChecked(d,sp.id),supp:true}));
+  list.push({id:'weight',slot:'morning',t:'Gewicht messen',sub:'Nach dem Aufstehen, nach der Toilette',st:w?'done':checkState(d,'weight'),val:w?w.w.toFixed(1)+' kg':'',act:'weight'});
+  S.supps.filter(sp=>suppDue(sp,d)).forEach(sp=>list.push({id:sp.id,slot:sp.slot,t:sp.name,sub:sp.dose||'',st:checkState(d,sp.id),supp:true}));
   return list;
 }
 function kpis(d){
@@ -22,10 +22,10 @@ function ring(v,g,label,unit,cls){const pct=Math.min(100,g?v/g*100:0);
   return `<div class="kpi"><div class="row between"><span class="tiny">${label}</span><span class="tiny num">${Math.round(pct)} %</span></div><div class="big num">${Math.round(v)}<span class="tiny"> / ${g} ${unit}</span></div><div class="bar"><i class="${cls}" style="width:${pct}%"></i></div></div>`}
 
 function html(){
-  const d=today(),k=kpis(d),ts=tasks(d),open=ts.filter(t=>!t.done).length;
+  const d=today(),k=kpis(d),ts=tasks(d),open=ts.filter(t=>t.st==='open').length,miss=ts.filter(t=>t.st==='miss').length;
   const due=S.plans.map(p=>({p,last:planWorkouts(p.id,p.name).slice(-1)[0]})).sort((a,b)=>(a.last?a.last.date:'')<(b.last?b.last.date:'')?-1:1)[0];
   const trainedToday=S.workouts.some(w=>w.date.slice(0,10)===d);
-  return `<h1>Heute<small>${new Date().toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'})}${open?` · ${open} offen`:' · alles erledigt'}</small></h1>
+  return `<h1>Heute<small>${new Date().toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'})}${open?` · ${open} offen`:miss?` · ${miss} ausgelassen`:' · alles erledigt'}</small></h1>
 
   <div class="grid2">${ring(k.prot,k.pg,'Protein','g','p')}${ring(k.kcal,k.kg,'Kalorien','kcal','k')}${ring(k.ml/1000,k.wg/1000,'Wasser','l','water')}
     <div class="kpi"><div class="row between"><span class="tiny">Gewicht</span><span class="tiny num ${k.dw===null?'':k.dw>0.1?'warn':k.dw<-0.1?'good':''}">${k.dw===null?'':(k.dw>0?'+':'')+k.dw.toFixed(1)+' kg'}</span></div><div class="big num">${k.weight?k.weight.w.toFixed(1):'–'}<span class="tiny"> kg</span></div><div class="tiny">${k.weight?fmtD(k.weight.d):'noch kein Eintrag'} · Trend 7 Tage</div></div>
@@ -40,7 +40,13 @@ function html(){
 
   <h2>Tagesplan</h2>
   ${SLOTS.map(([key,label])=>{const l=ts.filter(t=>t.slot===key);if(!l.length)return'';
-    return `<div class="card"><div class="tiny mb2">${label}</div><div class="list">${l.map(t=>`<div class="item"><button class="tick ${t.done?'done':''}" data-a="tick" data-id="${t.id}" data-act="${t.act||''}"></button><div class="grow"><div class="${t.done?'strike':''}">${esc(t.t)}</div>${t.sub?`<div class="tiny">${esc(t.sub)}</div>`:''}</div>${t.val?`<span class="tiny num">${t.val}</span>`:''}</div>`).join('')}</div></div>`}).join('')}
+    return `<div class="card"><div class="tiny mb2">${label}</div><div class="list">${l.map(t=>`<div class="item"><button class="tick ${t.st}" data-a="tick" data-id="${t.id}" data-act="${t.act||''}" data-st="${t.st}"></button><div class="grow"><div class="${t.st==='done'?'strike':t.st==='miss'?'missed':''}">${esc(t.t)}</div>${t.sub?`<div class="tiny">${esc(t.sub)}</div>`:''}</div>${t.val?`<span class="tiny num">${t.val}</span>`:''}</div>`).join('')}</div></div>`}).join('')}
+  <div class="tiny mb3">Tippen: offen → erledigt → ausgelassen.</div>
+
+  <h2>Routine · 14 Tage</h2>
+  <div class="card list">${ts.map(t=>{const sp=S.supps.find(x=>x.id===t.id);const h=habit(t.id,14,sp?dd=>suppDue(sp,dd):null);
+    return `<div class="item top"><div class="grow"><div style="font-weight:600">${esc(t.t)}</div><div class="hab mt2">${h.days.map(x=>`<i class="${x.due?x.st:'na'}" title="${x.d}"></i>`).join('')}</div></div><div class="right"><div class="num" style="font-weight:600">${h.rate} %</div><div class="tiny">${h.streak} Tage Serie</div></div></div>`}).join('')}</div>
+
   <button class="btn wide" data-a="supps">Supplements verwalten</button>`;
 }
 
@@ -79,8 +85,8 @@ export default{html,
   action(a,d){
     const day=today();
     if(a==='tick'){
-      if(d.act==='weight'){setTab('body');return}
-      setCheck(day,d.id,!isChecked(day,d.id));if(navigator.vibrate)navigator.vibrate(20);rerender()}
+      if(d.act==='weight'&&d.st==='open'&&!S.weights.some(x=>x.d===day)){setTab('body');return}
+      const st=cycleCheck(day,d.id);if(navigator.vibrate)navigator.vibrate(st==='miss'?[10,40,10]:20);rerender()}
     if(a==='supps')suppsSheet();
     if(a==='start'){import('../state.js').then(m=>{m.startWorkout(d.id);setTab('log')})}
   }};
