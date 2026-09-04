@@ -33,10 +33,11 @@ const clickAll=(sel,n)=>{for(let i=0;i<n;i++)d.querySelectorAll(sel)[i].dispatch
 const inp=(el,v)=>{el.value=v;el.dispatchEvent(new w.Event('input',{bubbles:true}))};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const store=()=>JSON.parse(w.localStorage.getItem('perf.v1'));
+const kv=async()=>{const {kvGet}=await import(path.join(root,'js/store.js'));return kvGet('perf.v1')};
 let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+name+(info?'  '+info:''));if(!cond)fails++};
 
 (async()=>{
-  await import(path.join(root,'js/app.js'));await sleep(80);
+  await import(path.join(root,'js/app.js'));await sleep(250);
   // Dashboard
   check('Start-Tab Heute',d.querySelector('nav button.on').dataset.tab==='today');
   click('[data-a=supps]');click('[data-x=preset]');check('Standard-Stack',store().supps.length===4);click('[data-x=close]');
@@ -95,6 +96,14 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
   // Sync: nur geänderte Dateien
   await sleep(3400);const files=repo.trees[repo.commits[repo.ref].tree.sha].tree.map(e=>e.path);check('Repo-Dateien',files.includes('data.json')&&files.includes('history.json'),files.join(','));
   click('[data-tab=plans]');click('[data-a=settings]');click('[data-x=restore]');await sleep(200);check('Restore',store().workouts.length===3);click('[data-x=close]');
+  {const st=await import(path.join(root,'js/state.js'));
+   check('Schema gesetzt',store().schema===st.SCHEMA);
+   check('Validierung erkennt Müll',!!st.validate({workouts:[{}]})&&!st.validate(store()));
+   const m=st.migrate({schema:1,measures:[{d:'2026-01-01',arm:40,thigh:60}]});check('Migration arm→armL',m.measures[0].armL===40&&m.measures[0].thighL===60&&m.schema===st.SCHEMA);
+   await st.flush();const idbData=await kv();check('In IndexedDB gespeichert',!!idbData&&idbData.workouts.length===store().workouts.length);}
+  {const files=repo.trees[repo.commits[repo.ref].tree.sha].tree.map(e=>e.path);check('Monats-Snapshot angelegt',files.some(f=>f.startsWith('snapshots/')),files.join(','));}
+  click('[data-tab=plans]');click('[data-a=settings]');click('[data-x=snaps]');await sleep(120);
+  check('Historie-Liste',!!d.querySelector('[data-x=pick]'));click('[data-x=pick]');await sleep(400);check('Snapshot wiederhergestellt (Stand vom Monatsbeginn)',store().plans.length===1&&store().schema===2);
   check('Keine JS-Fehler',errs.length===0,errs.join(' | '));
   console.log(fails?`\n${fails} Test(s) fehlgeschlagen`:'\nAlle Tests bestanden');process.exit(fails?1:0);
 })().catch(e=>{console.log('FAIL',e.stack);process.exit(1)});

@@ -1,4 +1,4 @@
-import {APP_VERSION,KEY,S,on} from './state.js';
+import {APP_VERSION,KEY,S,on,initState} from './state.js';
 import {registerView,render,rerender,sheet,closeSheet,toast,el,currentTab,setTab} from './ui.js';
 import './timer.js';
 import {pullSync} from './sync.js';
@@ -25,6 +25,7 @@ el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
   try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
   location.reload()};
 export const CHANGES=[
+ {v:'33',t:['Daten liegen jetzt in der IndexedDB (kein 5-MB-Limit mehr), localStorage bleibt Notfallkopie','Schema-Versionierung mit Migrationen','Monats-Snapshots im Backup + Wiederherstellen aus der Historie','Prüfung beim Wiederherstellen, Konflikt-Erkennung bei zwei Geräten','Monatliche Erinnerung an ein lokales Backup']},
  {v:'32',t:['Höhe wird jetzt live gemessen – Tab-Leiste sitzt korrekt am unteren Rand']},
  {v:'31',t:['Höhe der App korrigiert – Leiste sitzt am Rand']},
  {v:'30',t:['Tab-Leiste sitzt jetzt bündig am unteren Rand']},
@@ -57,6 +58,17 @@ setVH();window.addEventListener('resize',setVH);window.addEventListener('orienta
 if(window.visualViewport)window.visualViewport.addEventListener('resize',()=>{if(!document.activeElement||!/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))setVH()});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(setVH,50)});
 
+// ----- Monatliche Erinnerung an lokales Backup -----
+function monthlyExportReminder(){
+  const mon=new Date().toISOString().slice(0,7);
+  if(localStorage.getItem('perf.exportMonth')===mon)return;
+  if(!localStorage.getItem('perf.seen'))return;// nicht beim allerersten Start
+  setTimeout(()=>{sheet(`<h3>Monatliches Backup</h3><div class="muted mb3">Lege einmal im Monat eine Sicherungsdatei in deine Dateien-App – unabhängig vom Cloud-Backup.</div>
+    <button class="btn primary wide" data-x="exp">Backup-Datei erstellen</button><button class="btn wide mt2" data-x="later">Später</button>`,{
+    later:()=>{localStorage.setItem('perf.exportMonth',mon);closeSheet()},
+    exp:()=>{import('./ui.js').then(u=>u.dl('performance-'+mon+'.json',JSON.stringify(S),'application/json'));localStorage.setItem('perf.exportMonth',mon);closeSheet()}});},2500);
+}
+
 // ----- Bootstrap -----
 if(location.search)history.replaceState(null,'',location.pathname);
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
@@ -64,5 +76,5 @@ if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js',{updateV
 on('replace',()=>rerender());
 on('photos',()=>{if(currentTab()==='body')photos.renderGrid()});
 if(localStorage.getItem('perf.seen')!==APP_VERSION){const had=!!localStorage.getItem('perf.seen');localStorage.setItem('perf.seen',APP_VERSION);if(had)setTimeout(()=>toast('Aktualisiert auf Version '+APP_VERSION),800)}
-photos.loadMeta().then(()=>{render(true);pullSync();checkUpdate()});
+initState().then(()=>photos.loadMeta()).then(()=>{render(true);pullSync();checkUpdate();monthlyExportReminder()});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});

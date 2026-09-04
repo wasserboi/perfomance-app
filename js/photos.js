@@ -1,14 +1,12 @@
 import {S,save,today,uid,fmtD,fmtDL,emit} from './state.js';
 import {sheet,closeSheet,toast,el,confirm2,$} from './ui.js';
+import {photoAll,photoPut,photoDel,photoGet} from './store.js';
 
 export let PH=[];// {id,d,synced,has,remoteSha}
-function idb(){return new Promise((ok,err)=>{const r=indexedDB.open('perf',1);r.onupgradeneeded=()=>r.result.createObjectStore('photos',{keyPath:'id'});r.onsuccess=()=>ok(r.result);r.onerror=()=>err(r.error)})}
-const tx=(mode,fn)=>idb().then(db=>new Promise((ok,err)=>{const q=fn(db.transaction('photos',mode).objectStore('photos'));q.onsuccess=()=>ok(q.result);q.onerror=()=>err(q.error)}));
-const all=()=>tx('readonly',s=>s.getAll()).catch(()=>[]);
-const put=p=>tx('readwrite',s=>s.put(p));
-const del=id=>tx('readwrite',s=>s.delete(id));
-const get=id=>tx('readonly',s=>s.get(id)).catch(()=>null);
-
+const all=()=>photoAll();
+const put=p=>photoPut(p);
+const del=id=>photoDel(id);
+const get=id=>photoGet(id);
 export async function loadMeta(){const local=await all();const map={};PH.forEach(p=>map[p.id]=p);local.forEach(p=>{map[p.id]=Object.assign(map[p.id]||{},{id:p.id,d:p.d,synced:p.synced,has:!!p.data})});PH=Object.values(map).sort((a,b)=>a.d<b.d?-1:1)}
 function compress(file){return new Promise((ok,err)=>{const img=new Image();const u=URL.createObjectURL(file);img.onload=()=>{const m=1000,k=Math.min(1,m/Math.max(img.width,img.height)),cv=document.createElement('canvas');cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(u);ok(cv.toDataURL('image/jpeg',.82).split(',')[1])};img.onerror=err;img.src=u})}
 export async function add(file){if(!file)return;toast('Foto wird gespeichert…');const data=await compress(file);const id=today()+'_'+uid();await put({id,d:today(),data,synced:false});await loadMeta();toast('Foto gespeichert');save();emit('photos')}

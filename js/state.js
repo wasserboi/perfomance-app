@@ -1,5 +1,7 @@
+import {kvGet,kvSet,mirror,readMirror} from './store.js';
 // ===== Konstanten =====
-export const APP_VERSION='32';
+export const APP_VERSION='33';
+export const SCHEMA=2;
 export const KEY='perf.v1';
 export const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];
 export const TYPES=['Freihand','Maschine','Kabelturm'];
@@ -11,14 +13,49 @@ const def={plans:[],workouts:[],weights:[],macros:{},foods:[],meals:[],measures:
 
 // ===== State =====
 export const clone=o=>JSON.parse(JSON.stringify(o));
-export let S=load();
-function load(){try{const s=JSON.parse(localStorage.getItem(KEY));return s?Object.assign(clone(def),s):clone(def)}catch(e){return clone(def)}}
-export function replaceState(data){S=Object.assign(clone(def),data);localStorage.setItem(KEY,JSON.stringify(S));emit('replace')}
+export let S=clone(def);
+
+/* Migrationen: laufen beim Laden, jede hebt das Schema um eine Stufe */
+const MIGRATIONS={
+  1:d=>{ // 1 → 2: Maße arm/thigh auf links/rechts, fehlende Felder ergänzen
+    (d.measures||[]).forEach(m=>{if(m.arm!==undefined&&m.armL===undefined){m.armL=m.arm;delete m.arm}
+      if(m.thigh!==undefined&&m.thighL===undefined){m.thighL=m.thigh;delete m.thigh}});
+    d.supps=d.supps||[];d.checks=d.checks||{};d.water=d.water||{};
+    return d}
+};
+export function migrate(d){let v=d.schema||1;while(v<SCHEMA){const f=MIGRATIONS[v];if(f)d=f(d)||d;v++}d.schema=SCHEMA;return d}
+
+/* Plausibilitätsprüfung vor dem Übernehmen fremder Daten */
+export function validate(d){
+  if(!d||typeof d!=='object')return 'Keine gültige Datei';
+  for(const k of ['plans','workouts','weights'])if(d[k]&&!Array.isArray(d[k]))return 'Feld '+k+' beschädigt';
+  if(d.macros&&typeof d.macros!=='object')return 'Ernährungsdaten beschädigt';
+  if((d.workouts||[]).some(w=>!w||!Array.isArray(w.exercises)||!w.date))return 'Trainingsdaten unvollständig';
+  return null;
+}
+
+export async function initState(){
+  let data=null;
+  try{data=await kvGet(KEY)}catch(e){}
+  if(!data){const raw=readMirror(KEY);if(raw){try{data=JSON.parse(raw)}catch(e){}}}
+  S=migrate(Object.assign(clone(def),data||{}));
+  if(data)await persist();
+  return S;
+}
+export function replaceState(data){S=migrate(Object.assign(clone(def),data));persist();emit('replace')}
+
+let saveT=null,pending=false;
+async function persist(){const str=JSON.stringify(S);mirror(KEY,str);try{await kvSet(KEY,JSON.parse(str))}catch(e){console.warn('IndexedDB',e)}}
+export function save(){S.updatedAt=Date.now();S.schema=SCHEMA;
+  const str=JSON.stringify(S);mirror(KEY,str);
+  pending=true;clearTimeout(saveT);saveT=setTimeout(()=>{pending=false;kvSet(KEY,JSON.parse(str)).catch(e=>console.warn('IndexedDB',e))},300);
+  emit('save')}
+export async function flush(){if(pending){clearTimeout(saveT);pending=false;await persist()}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flush()});
 
 const listeners={};
 export function on(ev,fn){(listeners[ev]=listeners[ev]||[]).push(fn)}
 export function emit(ev,arg){(listeners[ev]||[]).forEach(f=>f(arg))}
-export function save(){S.updatedAt=Date.now();localStorage.setItem(KEY,JSON.stringify(S));emit('save')}
 
 // ===== Helpers =====
 export const uid=()=>Math.random().toString(36).slice(2,9);
