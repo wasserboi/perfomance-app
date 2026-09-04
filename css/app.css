@@ -79,6 +79,8 @@ label.f{display:block;font-size:var(--f1);color:var(--ink3);margin-bottom:var(--
 .bar{height:10px;background:var(--bg3);border-radius:6px;overflow:hidden;margin-top:6px}
 .bar i{display:block;height:100%;background:var(--accent);border-radius:6px;transition:width .3s}
 .bar i.over{background:var(--warn)}.bar i.water{background:var(--water)}
+.bar i.p{background:#5d86ef}.bar i.c{background:#e8a33f}.bar i.f{background:#c06fe8}.bar i.k{background:var(--good)}
+.bar i.p.over,.bar i.c.over,.bar i.f.over,.bar i.k.over{background:var(--warn)}
 canvas{width:100%;height:190px;display:block}
 .stat{background:var(--bg2);border-radius:var(--r2);padding:var(--s3);text-align:center}
 .stat b{display:block;font-size:24px;letter-spacing:-.02em;line-height:1.1}
@@ -145,6 +147,7 @@ nav svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;st
 
 /* ===== Macros ===== */
 .macro{margin-bottom:14px}
+.macro:last-of-type{margin-bottom:0}
 .macro .row{align-items:baseline}
 .macro b{font-size:22px;font-weight:700;letter-spacing:-.02em}
 .food{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line);width:100%;text-align:left}

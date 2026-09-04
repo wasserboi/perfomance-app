@@ -16,16 +16,27 @@ function weekly(g,gk){
 function html(){
   const items=S.macros[day]||[],t=items.reduce((a,i)=>({p:a.p+i.p,c:a.c+i.c,f:a.f+i.f}),{p:0,c:0,f:0});
   const isT=dayIsTrain(day),g=isT?S.goals:(S.goalsRest||S.goals),gk=kcalOf(g),tk=items.reduce((a,i)=>a+kcalOf(i),0),isToday=day===today();
-  const bar=(l,v,goal,u='g')=>`<div class="macro"><div class="row between"><span>${l}</span><span class="num"><b>${Math.round(v)}</b> <span class="tiny">/ ${goal} ${u}</span></span></div><div class="bar"><i class="${v>goal*1.1?'over':''}" style="width:${Math.min(100,v/goal*100)}%"></i></div></div>`;
-  const ml=S.water[day]||0;
+  const bar=(l,v,goal,u,cls)=>`<div class="macro"><div class="row between"><span>${l}</span><span class="num"><b>${Math.round(v)}</b> <span class="tiny">/ ${goal} ${u}</span></span></div><div class="bar"><i class="${cls}${v>goal*1.1?' over':''}" style="width:${Math.min(100,v/goal*100)}%"></i></div></div>`;
+  const ml=S.water[day]||0,m=dayMinerals(day),food=items.filter(i=>!i.water||i.kcal);
   return `<div class="row between" style="margin-top:6px"><h1 style="margin:0">Makros<small>${isToday?'Heute':fmtDL(day+'T12:00')} · noch ${Math.max(0,Math.round(g.p-t.p))} g Protein</small></h1><div class="row"><button class="btn ghost sm" data-a="day" data-o="-1">‹</button><button class="btn ghost sm" data-a="day" data-o="1" ${isToday?'disabled':''}>›</button></div></div>
-  <div class="card mt3">${bar('Protein',t.p,g.p)}${bar('Kohlenhydrate',t.c,g.c)}${bar('Fett',t.f,g.f)}${bar('Kalorien',tk,gk,'kcal')}
-    <div class="row between"><button class="btn ghost sm" data-a="goals">Ziele anpassen</button><button class="btn sm" data-a="daytype">${isT?'Trainingstag':'Ruhetag'} ⇄</button></div></div>
+
+  <h2>Tagesziele · ${isT?'Trainingstag':'Ruhetag'}</h2>
+  <div class="card">${bar('Protein',t.p,g.p,'g','p')}${bar('Kohlenhydrate',t.c,g.c,'g','c')}${bar('Fett',t.f,g.f,'g','f')}${bar('Kalorien',tk,gk,'kcal','k')}
+    <div class="row between mt3" style="border-top:1px solid var(--line);padding-top:12px"><button class="btn ghost sm" data-a="goals">Ziele anpassen</button><button class="btn sm" data-a="daytype">Auf ${isT?'Ruhetag':'Trainingstag'} umstellen</button></div></div>
   ${weekly(g,gk)}
-  <div class="card water"><span class="muted" style="min-width:60px">Wasser</span><div class="bar"><i class="water" style="width:${Math.min(100,ml/3000*100)}%"></i></div><span class="num tiny right" style="min-width:56px">${(ml/1000).toFixed(2).replace('.',',')} l</span><button class="btn sm" data-a="water" data-v="250">+250</button><button class="btn sm" data-a="water" data-v="500">+500</button><button class="btn ghost sm" data-a="water" data-v="-250">−</button></div>
-  ${(()=>{const m=dayMinerals(day);return m.mg||m.ca||m.na?`<div class="tiny mb2" style="margin-left:2px">Mineralien heute: Mg ${m.mg||0} mg · Ca ${m.ca||0} mg · Na ${m.na||0} mg</div>`:''})()}
-  <div class="grid2 mb2"><button class="btn primary" data-a="scan">Scannen</button><button class="btn" data-a="search">Suchen</button><button class="btn" data-a="meals">Mahlzeit</button><button class="btn" data-a="new">Manuell</button></div>
-  ${items.length?`<div class="card list">${items.map((i,idx)=>`<div class="item"><div class="grow"><div>${esc(i.n)||'<span class="tiny">Ohne Namen</span>'}${i.amount?` <span class="tiny">${i.amount} ${i.unit||'g'}</span>`:''}${i.water?' <span class="tag">Wasser</span>':''}</div><div class="tiny num">P ${r1(i.p)} · C ${r1(i.c)} · F ${r1(i.f)} · ${kcalOf(i)} kcal</div></div><button class="btn ghost sm" data-a="rm" data-i="${idx}">✕</button></div>`).join('')}</div>`:'<div class="empty">Noch nichts eingetragen.</div>'}
+
+  <h2>Wasser</h2>
+  <div class="card">
+    <div class="row between"><span class="big num">${(ml/1000).toFixed(2).replace('.',',')}<span class="tiny"> / 3,00 l</span></span><div class="row"><button class="btn sm" data-a="water" data-v="250">+250</button><button class="btn sm" data-a="water" data-v="500">+500</button><button class="btn ghost sm" data-a="water" data-v="-250">−250</button></div></div>
+    <div class="bar"><i class="water" style="width:${Math.min(100,ml/3000*100)}%"></i></div>
+    ${m.mg||m.ca||m.na?`<div class="tiny mt2">Mineralien heute: Mg ${m.mg||0} mg · Ca ${m.ca||0} mg · Na ${m.na||0} mg</div>`:''}</div>
+
+  <h2>Erfassen</h2>
+  <div class="grid2"><button class="btn primary" data-a="scan">Scannen</button><button class="btn" data-a="search">Suchen</button><button class="btn" data-a="meals">Mahlzeit</button><button class="btn" data-a="new">Manuell</button></div>
+
+  <h2>${isToday?'Heute gegessen':'Gegessen'}${items.length?` · ${items.length} ${items.length===1?'Eintrag':'Einträge'}`:''}</h2>
+  ${items.length?`<div class="card list">${items.map((i,idx)=>`<div class="item"><div class="grow"><div>${esc(i.n)||'<span class="tiny">Ohne Namen</span>'}${i.amount?` <span class="tiny">${i.amount} ${i.unit||'g'}</span>`:''}${i.water?' <span class="tag">Wasser</span>':''}</div><div class="tiny num">P ${r1(i.p)} · C ${r1(i.c)} · F ${r1(i.f)} · ${kcalOf(i)} kcal</div></div><button class="btn ghost sm" data-a="rm" data-i="${idx}">✕</button></div>`).join('')}</div>`:'<div class="card"><div class="empty">Noch nichts eingetragen.</div></div>'}
+
   ${S.foods.length?`<h2>Zuletzt verwendet</h2><div class="card" id="recent">${recentFoods().slice(0,8).map(f=>foodRow(f).replace('data-x="pick"','data-a="pick"')).join('')}</div>`:''}`;
 }
 function goalsSheet(){

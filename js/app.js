@@ -24,6 +24,7 @@ el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
   try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
   location.reload()};
 export const CHANGES=[
+ {v:'22',t:['Makros-Tab in klare Abschnitte gegliedert, farbige Balken je Makro']},
  {v:'21',t:['Übungen im Plan per ≡ verschieben']},
  {v:'20',t:['Zeitraum-Filter auch beim Gewicht; überall Standard 3 Monate']},
  {v:'19',t:['Getränke zählen auf den Wasserstand; Magnesium, Calcium und Natrium werden mitgezählt']},
