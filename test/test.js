@@ -66,7 +66,7 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
   // Makros
   click('[data-tab=macros]');click('[data-a=search]');inp(d.getElementById('fq'),'skyr');await sleep(700);click('#fres .food');inp(d.getElementById('fam'),400);click('[data-x=add]');
   check('Skyr 400 g gebucht',/44/.test(d.querySelector('.macro b').textContent));
-  click('[data-a=search]');inp(d.getElementById('fq'),'Ei');await sleep(50);check('Basics: Ei zuerst, nicht Eis',/Ei \(Hühnerei\)/.test(d.querySelector('#fres .food .fn').textContent));click('#fres .food');click('[data-x=add]');
+  click('[data-a=search]');inp(d.getElementById('fq'),'Ei');await sleep(50);check('Basics: Ei zuerst, nicht Eis',/Ei \(Hühnerei\)/.test(d.querySelector('#fres .food .fn').textContent));click('#fres .food');check('Portions-Chips (Ei M 60 g)',/Ei \(M\) 60 g/.test(d.querySelector('#sheet').textContent));click('[data-x=q][data-v="120"]');check('2× Ei = 120 g',d.getElementById('fam').value==='120');click('[data-x=add]');
   click('[data-a=meals]');inp(d.getElementById('mlname'),'Frühstück');click('[data-x=save]');click('[data-x=book]');check('Mahlzeit gebucht',store().macros[Object.keys(store().macros)[0]].length===4);
   click('[data-a=water]');check('Wasser',/0,25/.test(d.querySelector('.water .num').textContent));
   click('#recent .food');check('Zuletzt-Liste öffnet Menge',!!d.getElementById('fam'));click('[data-x=edit]');click('[data-x=close]');

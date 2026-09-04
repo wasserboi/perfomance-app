@@ -30,18 +30,20 @@ export function foodForm(day,f){
   <div class="field"><label class="f">Marke (optional)</label><input id="ffb" value="${esc(f.brand)}"></div>
   <div class="tiny mb2">Nährwerte pro 100 <span id="ffu">${f.unit}</span> <button class="btn ghost xs" data-x="unit">g / ml wechseln</button></div>
   <div class="grid4"><div><label class="f">Protein</label><input type="number" inputmode="decimal" id="ffp" value="${f.p||''}"></div><div><label class="f">Carbs</label><input type="number" inputmode="decimal" id="ffc" value="${f.c||''}"></div><div><label class="f">Fett</label><input type="number" inputmode="decimal" id="fff" value="${f.f||''}"></div><div><label class="f">kcal</label><input type="number" inputmode="decimal" id="ffk" value="${f.kcal||''}" placeholder="auto"></div></div>
+  <div class="row mt3"><div class="grow"><label class="f">Portion (optional), z. B. Riegel</label><input id="ffpn" value="${esc(f.portions?.[0]?.n||'')}"></div><div style="width:90px"><label class="f">Gramm/ml</label><input type="number" inputmode="decimal" id="ffpg" value="${f.portions?.[0]?.g||''}"></div></div>
   <div class="grid2 mt4"><button class="btn" data-x="close">Abbrechen</button><button class="btn primary" data-x="save">Speichern & Menge</button></div>
   ${S.foods.some(x=>x.id===f.id)?'<button class="btn ghost danger wide mt2" data-x="del">Produkt löschen</button>':''}`,{
     unit:()=>{f.unit=f.unit==='g'?'ml':'g';el('ffu').textContent=f.unit},close:closeSheet,
     del:()=>{S.foods=S.foods.filter(x=>x.id!==f.id);save();closeSheet();rerender()},
-    save:()=>{f.name=el('ffn').value.trim();f.brand=el('ffb').value.trim();['p','c','f'].forEach(k=>f[k]=+el('ff'+k).value||0);f.kcal=+el('ffk').value||null;if(!f.name){toast('Name fehlt');return}amountSheet(day,f)}});
+    save:()=>{f.name=el('ffn').value.trim();f.brand=el('ffb').value.trim();['p','c','f'].forEach(k=>f[k]=+el('ff'+k).value||0);f.kcal=+el('ffk').value||null;const pn=el('ffpn').value.trim(),pg=+el('ffpg').value;f.portions=pn&&pg?[{n:pn,g:pg}].concat((f.portions||[]).slice(1)):(f.portions||[]).slice(1);if(!f.name){toast('Name fehlt');return}amountSheet(day,f)}});
 }
 export function amountSheet(day,f){
   f=Object.assign({id:uid(),unit:'g'},f);
   const draw=()=>{const a=+el('fam').value||100,m=k=>f[k]*a/100;el('fcalc').innerHTML=`<div><b>${Math.round(fkcal(f)*a/100)}</b><small>kcal</small></div><div><b>${r1(m('p'))}</b><small>Protein</small></div><div><b>${r1(m('c'))}</b><small>Carbs</small></div><div><b>${r1(m('f'))}</b><small>Fett</small></div>`};
   sheet(`<h3>${esc(f.name)}</h3><div class="tiny mb3">${esc(f.brand||'')}${f.brand?' · ':''}pro 100 ${f.unit}: ${fkcal(f)} kcal · P ${r1(f.p)} · C ${r1(f.c)} · F ${r1(f.f)}</div>
   <div class="amt"><input type="number" inputmode="decimal" id="fam" value="100"><span>${f.unit}</span></div>
-  <div class="mt2">${[50,100,150,200,250,300,500].map(v=>`<button class="chip" data-x="q" data-v="${v}">${v}</button>`).join('')}</div>
+  ${(f.portions||[]).length?`<div class="mt2">${f.portions.flatMap(po=>[1,2,3].map(k=>`<button class="chip" data-x="q" data-v="${po.g*k}">${k>1?k+'× ':''}${esc(po.n)} <span class="tiny">${po.g*k} ${f.unit}</span></button>`)).join('')}</div>`:''}
+  <div class="${(f.portions||[]).length?'mt1':'mt2'}">${[50,100,150,200,250,300,500].map(v=>`<button class="chip" data-x="q" data-v="${v}">${v}</button>`).join('')}</div>
   <div class="calc" id="fcalc"></div>
   <div class="grid2"><button class="btn" data-x="edit">Bearbeiten</button><button class="btn primary" data-x="add">Hinzufügen</button></div>`,{
     q:b=>{el('fam').value=b.dataset.v;draw()},edit:()=>foodForm(day,f),
