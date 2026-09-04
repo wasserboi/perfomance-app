@@ -45,6 +45,9 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
   inp(d.querySelectorAll('[data-pf=name]')[0],'Bank');click('[data-x=main]');inp(d.querySelector('[data-pf=weight]'),100);
   inp(d.querySelectorAll('[data-pf=name]')[1],'Flys');const sel=d.querySelectorAll('[data-pf=type]')[1];sel.value='Kabelturm';sel.dispatchEvent(new w.Event('change',{bubbles:true}));click('[data-x=save]');
   check('Plan gespeichert',store().plans.length===1&&store().plans[0].exercises[1].type==='Kabelturm');
+  // Reihenfolge
+  {const {moveItem}=await import(path.join(root,'js/views/plans.js'));const a=['A','B','C'];moveItem(a,0,2);check('moveItem verschiebt',a.join('')==='BCA');}
+  click('[data-a=edit][data-id]');check('Drag-Griffe vorhanden',d.querySelectorAll('[data-drag]').length===2);click('[data-x=close]');
   // Training: 10x3 ok -> 7x5
   const session=(okSets,flysKg)=>{click('[data-tab=log]');click('[data-a=start][data-id]');clickAll('[data-a=done]',okSets);
     if(flysKg){const n=d.querySelectorAll('input[data-f=w]').length-1;inp(d.querySelectorAll('input[data-f=w]')[n],flysKg);inp(d.querySelectorAll('input[data-f=r]')[n],10);d.querySelectorAll('[data-a=done]')[n].dispatchEvent(new w.MouseEvent('click',{bubbles:true}))}

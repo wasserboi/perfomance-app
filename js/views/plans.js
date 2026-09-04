@@ -13,16 +13,17 @@ function html(){
   <div class="tiny mt4">${SY.token?'Backup: '+syncText():'Kein Cloud-Backup – in den Einstellungen einrichten'}</div>`;
 }
 
+export function moveItem(arr,from,to){if(to<0||to>=arr.length||from===to)return arr;const [x]=arr.splice(from,1);arr.splice(to,0,x);return arr}
 function planSheet(id){
   const p=id?clone(S.plans.find(x=>x.id===id)):{id:uid(),name:'',exercises:[]};
   const draw=()=>sheet(`<h3>${id?'Plan bearbeiten':'Neuer Plan'}</h3>
     <div class="field"><label class="f">Name</label><input id="pn" value="${esc(p.name)}" placeholder="z. B. Push"></div>
-    ${p.exercises.map((e,i)=>`<div class="prow"><div class="row"><input class="grow" value="${esc(e.name)}" data-pf="name" data-i="${i}" placeholder="Übung"><button class="btn ghost sm" data-x="rm" data-i="${i}">✕</button></div>
+    ${p.exercises.map((e,i)=>`<div class="prow" data-row="${i}"><div class="row"><button class="drag" data-drag="${i}" aria-label="Verschieben">≡</button><input class="grow" value="${esc(e.name)}" data-pf="name" data-i="${i}" placeholder="Übung"><button class="btn ghost sm" data-x="rm" data-i="${i}">✕</button></div>
       <div class="row mt2"><select data-pf="type" data-i="${i}" class="grow">${TYPES.map(t=>`<option ${e.type===t?'selected':''}>${t}</option>`).join('')}</select><button class="btn sm ${e.main?'primary':''}" data-x="main" data-i="${i}">Main</button></div>
       ${e.main?`<div class="row mt2"><div class="grow"><label class="f">Ausgangsgewicht (kg)</label><input type="number" inputmode="decimal" step="0.5" value="${e.weight||''}" data-pf="weight" data-i="${i}"></div><div style="width:90px"><label class="f">Schritt (kg)</label><input type="number" inputmode="decimal" step="0.5" value="${e.step||10}" data-pf="step" data-i="${i}"></div></div><div class="tiny mt2">3-5-7: 10×3 → 7×5 → 5×7, dann +Schritt</div>`
       :`<div class="row mt2"><span class="tiny">Sätze</span><input type="number" inputmode="numeric" style="width:64px" value="${e.sets}" data-pf="sets" data-i="${i}"><span class="tiny">× Reps</span><input type="number" inputmode="numeric" style="width:64px" value="${e.reps}" data-pf="reps" data-i="${i}"></div>`}
     </div>`).join('')}
-    <button class="btn sm mb4" data-x="add">+ Übung</button>
+    <button class="btn sm" data-x="add">+ Übung</button><div class="tiny mt2 mb4">Am ≡ ziehen, um die Reihenfolge zu ändern.</div>
     <div class="grid2"><button class="btn" data-x="close">Abbrechen</button><button class="btn primary" data-x="save">Speichern</button></div>
     ${id?'<button class="btn ghost danger wide mt2" data-x="del">Plan löschen</button>':''}`,{
     _input:ev=>{const t=ev.target;if(t.id==='pn')p.name=t.value;if(t.dataset.pf){const f=t.dataset.pf,e=p.exercises[t.dataset.i];e[f]=(f==='name'||f==='type')?t.value:+t.value;if(f==='weight')e.state={weight:+t.value,stage:0}}},
@@ -34,7 +35,28 @@ function planSheet(id){
     del:()=>{if(!confirm2('Plan löschen?'))return;S.plans=S.plans.filter(x=>x.id!==id);save();closeSheet();rerender()},
     save:()=>{p.exercises=p.exercises.filter(e=>e.name.trim());if(!p.name.trim()){toast('Name fehlt');return}const m=p.exercises.find(e=>e.main);if(m&&!m.weight){toast('Ausgangsgewicht für Main fehlt');return}
       const i=S.plans.findIndex(x=>x.id===p.id);i<0?S.plans.push(p):S.plans[i]=p;save();closeSheet();rerender()}});
+    attachDrag(document.querySelector('#sheet .in'),p.exercises,i=>{if(i<0)draw()});
   draw();
+}
+function attachDrag(box,list,onDone){
+  let dragI=-1,el0=null;
+  box.querySelectorAll('[data-drag]').forEach(h=>{
+    h.addEventListener('pointerdown',ev=>{
+      ev.preventDefault();dragI=+h.dataset.drag;el0=h.closest('[data-row]');el0.classList.add('dragging');h.setPointerCapture(ev.pointerId);
+      const move=e=>{
+        const rows=[...box.querySelectorAll('[data-row]')];
+        for(let k=0;k<rows.length;k++){
+          if(k===dragI)continue;const r=rows[k].getBoundingClientRect();
+          if(e.clientY>r.top&&e.clientY<r.bottom){moveItem(list,dragI,k);dragI=k;onDone(dragI);
+            const nb=document.querySelector('#sheet .in');attachDrag(nb,list,onDone);
+            const nh=nb.querySelector(`[data-drag="${k}"]`);if(nh){nh.classList.add('act');const nr=nh.closest('[data-row]');nr.classList.add('dragging');try{nh.setPointerCapture(e.pointerId)}catch(_){}}
+            break}
+        }
+      };
+      const up=e=>{h.removeEventListener('pointermove',move);h.removeEventListener('pointerup',up);document.querySelectorAll('.dragging').forEach(x=>x.classList.remove('dragging'));dragI=-1;onDone(-1)};
+      h.addEventListener('pointermove',move);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up);
+    });
+  });
 }
 
 export function settingsSheet(){
