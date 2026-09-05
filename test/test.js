@@ -28,6 +28,7 @@ w.fetch=async(url,o={})=>{const ok=j=>({ok:true,status:200,json:async()=>j});
   if(p==='/git/refs/heads/main'||p==='/git/refs'){repo.ref=body.sha;return ok({})}
   return{ok:false,status:500}};
 const ctx=new Proxy({},{get:()=>()=>ctx});w.HTMLCanvasElement.prototype.getContext=()=>ctx;
+w.HTMLCanvasElement.prototype.toBlob=function(cb){cb(new w.Blob(['x'],{type:'image/png'}))};
 w.confirm=()=>true;w.indexedDB=indexedDB;w.crypto.subtle=crypto.webcrypto.subtle;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
 Object.defineProperty(globalThis,'navigator',{value:w.navigator,configurable:true});
 ['window','document','localStorage','HTMLElement','Image','URL','Blob','FileReader','AudioContext','getComputedStyle','devicePixelRatio','indexedDB','fetch','confirm','caches','location','history'].forEach(k=>{try{global[k]=w[k]}catch(e){}});
@@ -38,11 +39,13 @@ const click=sel=>{const el=d.querySelector(sel);if(!el)throw new Error('no '+sel
 const clickAll=(sel,n)=>{for(let i=0;i<n;i++)d.querySelectorAll(sel)[i].dispatchEvent(new w.MouseEvent('click',{bubbles:true}))};
 const inp=(el,v)=>{el.value=v;el.dispatchEvent(new w.Event('input',{bubbles:true}))};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const waitFor=async(fn,timeout=2000,step=20)=>{const t0=Date.now();while(Date.now()-t0<timeout){if(fn())return true;await sleep(step)}return fn()};
 const store=()=>JSON.parse(w.localStorage.getItem('perf.v1'));
 const kv=async()=>{const {kvGet}=await import(path.join(root,'js/store.js'));return kvGet('perf.v1')};
 let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+name+(info?'  '+info:''));if(!cond)fails++};
 
 (async()=>{
+  w.localStorage.setItem('perf.exportMonth',new Date().toISOString().slice(0,7)); // Monats-Erinnerung im Test von Anfang an unterdrücken (sonst zeitabhängig, nicht deterministisch)
   await import(path.join(root,'js/app.js'));await sleep(250);
   // Dashboard
   check('Start-Tab Heute',d.querySelector('nav button.on').dataset.tab==='today');
@@ -118,6 +121,66 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
     check('Index stimmt mit Volldurchsuchung überein',JSON.stringify(st.computeBests(store().workouts).Bankdrücken)===JSON.stringify(bench));
   }
 
+  // v36: neue Features — Heatmap, PR-Wand, Foto-Slider, Kraftstandard, Wochenbild, Konfetti, nächstes Ziel
+  {
+    const mus=await import(path.join(root,'js/muscles.js'));
+    check('Muskel-Klassifizierung: Bankdrücken → Brust',mus.classify('Bankdrücken')[0][0]==='Brust');
+    check('Muskel-Klassifizierung: Kreuzheben → Rücken+Beine',JSON.stringify(mus.classify('Kreuzheben'))===JSON.stringify([['Rücken',.5],['Beine',.5]]));
+    const svg=mus.bodySVG('front',{Brust:100});check('Body-SVG rendert',svg.includes('<svg')&&svg.includes('path'));
+  }
+  {
+    const st=await import(path.join(root,'js/state.js'));
+    const wall=st.prWall();
+    check('PR-Wand hat Einträge',wall.length>0,'n='+wall.length);
+    check('PR-Wand: Bankdrücken dabei',wall.some(e=>e.exercise==='Bankdrücken'));
+    check('PR-Wand ist absteigend sortiert',wall.every((e,i)=>i===0||wall[i-1].date>=e.date));
+    click('[data-tab=progress]');
+    const exSel=d.getElementById('pexSel');if(exSel){exSel.value='Bankdrücken';exSel.dispatchEvent(new w.Event('change',{bubbles:true}))}
+    check('Heatmap-Karte sichtbar',!!d.querySelector('.body-svg svg'));
+    check('Kraftstandard-Karte (Bankdrücken)',/Kraftstandard/.test(d.body.textContent));
+    check('Nächstes-Ziel-Karte',/Nächstes Ziel/.test(d.body.textContent));
+    click('[data-a=wall]');await sleep(50);
+    check('PR-Wand-Sheet öffnet',/PR-Wand/.test(d.querySelector('#sheet h3').textContent)&&!!d.querySelector('#sheet .item'));
+    click('[data-x=close]');
+    const g=st.nextRoundGoal('Bankdrücken');
+    check('Nächstes rundes Ziel > aktueller Bestwert',!!g&&g.target>g.current&&g.target%10===0);
+    const {findLift,classifyStandard}=await import(path.join(root,'js/standards.js'));
+    const lift=findLift('Bankdrücken');
+    check('Kraftstandard erkennt Bankdrücken',!!lift);
+    const c=classifyStandard(lift,90,st.allTimeBest('Bankdrücken').brm);
+    check('Kraftstandard liefert eine Stufe',typeof c.tierName==='string'&&c.ratio>0);
+  }
+  {
+    // Foto-Vergleich: zwei Fotos anlegen, Slider prüfen
+    const {photoPut}=await import(path.join(root,'js/store.js'));
+    await photoPut({id:'2026-08-20_a',d:'2026-08-20',data:'/9j/testdataA',synced:false});
+    await photoPut({id:'2026-09-02_b',d:'2026-09-02',data:'/9j/testdataB',synced:false});
+    const photos=await import(path.join(root,'js/photos.js'));await photos.loadMeta();
+    click('[data-tab=body]');await sleep(50);
+    await photos.view('2026-09-02_b','2026-08-20_a');await waitFor(()=>!!d.getElementById('pslider')||!!d.querySelector('#sheet .pcmp'));
+    check('Foto-Vergleich: Schieberegler standardmäßig aktiv',!!d.getElementById('pslider')&&!!d.getElementById('ptop'));
+    const slider=d.getElementById('pslider');slider.value='75';slider.dispatchEvent(new w.Event('input',{bubbles:true}));
+    check('Schieberegler bewegt die Trennlinie',d.getElementById('pdiv').style.left==='75%');
+    click('[data-x=mode]');await waitFor(()=>!!d.querySelector('#sheet .pcmp'));
+    check('Umschalten auf Nebeneinander',!!d.querySelector('.pcmp')&&!d.getElementById('pslider'));
+    click('[data-x=close]');
+  }
+  {
+    // Konfetti bei PR
+    const conf=await import(path.join(root,'js/confetti.js'));
+    conf.burst();
+    check('Konfetti erscheint',!!d.querySelector('.confetti-box'));
+  }
+  {
+    // Wochenrückblick als Bild
+    const sh=await import(path.join(root,'js/share.js'));
+    const blob=await sh.buildWeekImage();
+    check('Wochenbild wird als Blob erzeugt',blob&&blob.size>0&&blob.type==='image/png');
+    click('[data-tab=log]');
+    check('Teilen-Button in der Wochenübersicht',!!d.querySelector('[data-a=share]'));
+  }
+
+
   // Sync: nur geänderte Dateien, Monats-Snapshot
   await sleep(3400);
   {const files=repo.trees[repo.commits[repo.ref].tree.sha].tree.map(e=>e.path);
@@ -191,6 +254,27 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
     check('Automatischer Abgleich hat tatsächlich ersetzt',store().plans.length===0);
     // Undo, um restlichen Testlauf nicht zu stören
     click('[data-tab=plans]');click('[data-a=settings]');click('[data-x=undo]');await sleep(50);click('[data-x=close]');
+  }
+  // v37: Datum in Makros darf nicht "festfrieren", wenn die App über Mitternacht hinweg offen bleibt
+  {
+    const realNow=Date.now,realDate=w.Date;
+    let fakeOffset=0;
+    const RD=class extends realDate{constructor(...a){if(a.length)super(...a);else super(realDate.now()+fakeOffset)}static now(){return realDate.now()+fakeOffset}};
+    global.Date=w.Date=RD;
+    click('[data-tab=macros]');
+    const before=d.querySelector('h1 small').textContent;
+    check('Makros zeigt zunächst "Heute"',/^Heute/.test(before),before);
+    // Systemzeit um 25 Stunden vorspulen (über Mitternacht hinweg), ohne irgendetwas anzutippen
+    fakeOffset=25*3600*1000;
+    await sleep(70); // > 60s-Intervall der Mitternachts-Uhr in echter Zeit ist unrealistisch zu warten;
+    // stattdessen den Rollover-Check direkt auslösen, wie es der Intervall-Timer täte:
+    const app=await import(path.join(root,'js/app.js'));
+    if(app.checkDayRollover)app.checkDayRollover();
+    document.dispatchEvent(new w.Event('visibilitychange'));
+    await sleep(30);
+    const after=d.querySelector('h1 small')?.textContent;
+    check('Makros aktualisiert sich automatisch nach Mitternacht',/^Heute/.test(after)&&!store().water[new realDate(realDate.now()).toISOString().slice(0,10)],'after='+after);
+    global.Date=w.Date=realDate;
   }
   check('Keine JS-Fehler',errs.length===0,errs.join(' | '));
   console.log(fails?`\n${fails} Test(s) fehlgeschlagen`:'\nAlle Tests bestanden');process.exit(fails?1:0);

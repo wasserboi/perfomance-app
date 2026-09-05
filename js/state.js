@@ -1,6 +1,7 @@
 import {kvGet,kvSet,mirror,readMirror} from './store.js';
+import {classify} from './muscles.js';
 // ===== Konstanten =====
-export const APP_VERSION='35';
+export const APP_VERSION='37';
 export const SCHEMA=3;
 export const KEY='perf.v1';
 export const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];
@@ -118,6 +119,41 @@ export function rebuildBests(w){ // ein Training in den bestehenden Index einpfl
   w.exercises.forEach(e=>{const b=S.bests[e.name]||{bw:0,brm:0,bv:0};
     work(e).forEach(t=>{b.bw=Math.max(b.bw,t.w);b.brm=Math.max(b.brm,e1rm(t.w,t.r));b.bv=Math.max(b.bv,t.w*t.r)});
     S.bests[e.name]=b});
+}
+// Chronik aller jemals erreichten Bestleistungen (PR-Wand). Reine Funktion, läuft einmal beim Öffnen.
+export function prWall(){
+  const events=[],best={},seen=new Set();
+  const chron=[...S.workouts].sort((a,b)=>a.date<b.date?-1:1);
+  chron.forEach(w=>{
+    w.exercises.forEach(e=>{
+      const ws=work(e);if(!ws.length)return;
+      const had=seen.has(e.name);const b=best[e.name]||{bw:0,brm:0,bv:0};
+      let hitW=false,hitR=false,hitV=false;
+      ws.forEach(s=>{if(s.w>b.bw){b.bw=s.w;hitW=true}const rm=e1rm(s.w,s.r);if(rm>b.brm+.05){b.brm=rm;hitR=true}const v=s.w*s.r;if(v>b.bv){b.bv=v;hitV=true}});
+      best[e.name]=b;seen.add(e.name);
+      if(had){
+        if(hitW)events.push({date:w.date,exercise:e.name,type:'Gewicht',value:b.bw+' kg'});
+        if(hitR)events.push({date:w.date,exercise:e.name,type:'1RM',value:Math.round(b.brm)+' kg (geschätzt)'});
+        if(hitV)events.push({date:w.date,exercise:e.name,type:'Volumen',value:Math.round(b.bv)+' kg (ein Satz)'});
+      }
+    });
+  });
+  return events.sort((a,b)=>b.date<a.date?-1:1);
+}
+// Wochenvolumen je Muskelgruppe (letzte 7 Tage), für die Körper-Heatmap
+export function weeklyMuscleVolume(){
+  const cut=new Date(Date.now()-7*864e5).toISOString();const out={};
+  S.workouts.filter(w=>w.date>=cut).forEach(w=>w.exercises.forEach(e=>{
+    const vol=work(e).reduce((a,s)=>a+s.w*s.r,0);if(!vol)return;
+    classify(e.name).forEach(([g,frac])=>{out[g]=(out[g]||0)+vol*frac});
+  }));
+  return out;
+}
+// Nächstes rundes Trainingsziel für eine Übung, auf Basis des aktuellen Bestwerts
+export function nextRoundGoal(name,step=10){
+  const b=allTimeBest(name);if(!b.bw)return null;
+  let target=Math.ceil((b.bw+0.5)/step)*step;if(target<=b.bw)target+=step;
+  return{current:b.bw,target,pct:Math.min(100,Math.round(b.bw/target*100))};
 }
 export function computeBests(workouts){ // reine Funktion, unabhängig vom globalen State (auch für Migration nutzbar)
   const bests={};(workouts||[]).forEach(w=>w.exercises.forEach(e=>{const b=bests[e.name]||{bw:0,brm:0,bv:0};

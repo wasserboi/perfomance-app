@@ -197,5 +197,23 @@ nav svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;st
 .pgrid .more{display:flex;align-items:center;justify-content:center;color:var(--ink2);font-weight:600;width:100%;height:100%}
 .pview img{width:100%;border-radius:12px;display:block;background:#000}
 .pcmp{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.pslide{position:relative;border-radius:12px;overflow:hidden;background:#000}
+.pslide .base{width:100%;display:block}
+.pslide .top{position:absolute;top:0;left:0;width:100%}
+.pslide .top img{width:100%;display:block}
+.pslide .pdiv{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 6px rgba(0,0,0,.6);transform:translateX(-1px)}
+input[type=range]{-webkit-appearance:none;appearance:none;height:28px;background:transparent;padding:0}
+input[type=range]::-webkit-slider-runnable-track{height:4px;background:var(--bg3);border-radius:2px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--accent);margin-top:-9px;border:2px solid #fff}
 
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.body-svg{max-width:200px;margin:0 auto}
+.body-svg svg{width:100%;display:block}
+.body-legend{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:var(--s3)}
+.dot{width:9px;height:9px;border-radius:3px;display:inline-block}
+.stdbar{height:10px;border-radius:6px;background:linear-gradient(90deg,var(--bg3),var(--accent2));position:relative}
+.stdbar i{position:absolute;top:-3px;width:3px;height:16px;background:var(--ink);border-radius:2px;left:0}
+.confetti-box{position:fixed;left:50%;top:30%;width:0;height:0;z-index:30;pointer-events:none}
+.confetti-box i{position:absolute;left:0;top:0;width:8px;height:14px;background:var(--c);border-radius:2px;opacity:0;animation-name:confetti-fall;animation-timing-function:ease-out;animation-fill-mode:forwards}
+@keyframes confetti-fall{0%{opacity:1;transform:translate(0,0) rotate(0)}100%{opacity:0;transform:translate(var(--x),260px) rotate(var(--r))}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}.confetti-box{display:none}}

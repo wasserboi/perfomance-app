@@ -2,10 +2,13 @@ import {S,save,today,fmtDL,esc,r1,kcalOf,dayIsTrain,recentFoods,dayMinerals} fro
 import {sheet,closeSheet,toast,rerender,el} from '../ui.js';
 import {searchSheet,scanSheet,foodForm,mealsSheet,amountSheet,foodRow} from '../food.js';
 
-let day=today();
+// Tag wird als Versatz zu "heute" gehalten, nicht als festes Datum – so korrigiert sich
+// die Anzeige von selbst, wenn die App über Mitternacht hinweg geöffnet bleibt.
+let dayOffset=0;
+function curDay(){const d=new Date();d.setDate(d.getDate()+dayOffset);return d.toISOString().slice(0,10)}
 const modes={hold:['Halten',0],gain:['Aufbau',0.25],cut:['Abnehmen',-0.4]};
 
-function weekly(g,gk){
+function weekly(day,g,gk){
   const ds=[...Array(7)].map((_,i)=>{const d=new Date(day+'T12:00');d.setDate(d.getDate()-i);return d.toISOString().slice(0,10)}).filter(d=>(S.macros[d]||[]).length);if(ds.length<2)return'';
   const sum=ds.map(d=>S.macros[d].reduce((a,i)=>({p:a.p+i.p,c:a.c+i.c,f:a.f+i.f,k:a.k+kcalOf(i)}),{p:0,c:0,f:0,k:0}));const avg=k=>Math.round(sum.reduce((a,x)=>a+x[k],0)/ds.length);
   const ws=[...S.weights].sort((a,b)=>a.d<b.d?-1:1),ref=new Date(day+'T12:00');ref.setDate(ref.getDate()-7);const before=ws.filter(x=>x.d<=ref.toISOString().slice(0,10)).slice(-1)[0],now=ws.filter(x=>x.d<=day).slice(-1)[0];const dw=before&&now&&before.d!==now.d?now.w-before.w:null;
@@ -14,16 +17,17 @@ function weekly(g,gk){
   return `<div class="card"><div class="row between"><span class="muted">Ø letzte ${ds.length} Tage</span><span class="tiny num">${avg('k')} kcal · P ${avg('p')} · C ${avg('c')} · F ${avg('f')}</span></div>${dw!==null?`<div class="tiny mt2">Gewicht in 7 Tagen: <span class="num ${Math.abs(dw)<0.3?'':dw>0?'warn':'good'}">${(dw>0?'+':'')+dw.toFixed(1)} kg</span> · Ziel: ${mode[0]} <button class="btn ghost xs" data-a="goalmode">ändern</button></div>`:''}${sug}</div>`;
 }
 function html(){
+  const day=curDay(),isToday=dayOffset===0;
   const items=S.macros[day]||[],t=items.reduce((a,i)=>({p:a.p+i.p,c:a.c+i.c,f:a.f+i.f}),{p:0,c:0,f:0});
-  const isT=dayIsTrain(day),g=isT?S.goals:(S.goalsRest||S.goals),gk=kcalOf(g),tk=items.reduce((a,i)=>a+kcalOf(i),0),isToday=day===today();
+  const isT=dayIsTrain(day),g=isT?S.goals:(S.goalsRest||S.goals),gk=kcalOf(g),tk=items.reduce((a,i)=>a+kcalOf(i),0);
   const bar=(l,v,goal,u,cls)=>`<div class="macro"><div class="row between"><span>${l}</span><span class="num"><b>${Math.round(v)}</b> <span class="tiny">/ ${goal} ${u}</span></span></div><div class="bar"><i class="${cls}${v>goal*1.1?' over':''}" style="width:${Math.min(100,v/goal*100)}%"></i></div></div>`;
-  const ml=S.water[day]||0,m=dayMinerals(day),food=items.filter(i=>!i.water||i.kcal);
+  const ml=S.water[day]||0,m=dayMinerals(day);
   return `<div class="row between" style="margin-top:6px"><h1 style="margin:0">Makros<small>${isToday?'Heute':fmtDL(day+'T12:00')} · noch ${Math.max(0,Math.round(g.p-t.p))} g Protein</small></h1><div class="row"><button class="btn ghost sm" data-a="day" data-o="-1">‹</button><button class="btn ghost sm" data-a="day" data-o="1" ${isToday?'disabled':''}>›</button></div></div>
 
   <h2>Tagesziele · ${isT?'Trainingstag':'Ruhetag'}</h2>
   <div class="card">${bar('Protein',t.p,g.p,'g','p')}${bar('Kohlenhydrate',t.c,g.c,'g','c')}${bar('Fett',t.f,g.f,'g','f')}${bar('Kalorien',tk,gk,'kcal','k')}
     <div class="row between mt3" style="border-top:1px solid var(--line);padding-top:12px"><button class="btn ghost sm" data-a="goals">Ziele anpassen</button><button class="btn sm" data-a="daytype">Auf ${isT?'Ruhetag':'Trainingstag'} umstellen</button></div></div>
-  ${weekly(g,gk)}
+  ${weekly(day,g,gk)}
 
   <h2>Wasser</h2>
   <div class="card">
@@ -48,7 +52,8 @@ function goalsSheet(){
 }
 export default{html,
   action(a,d){
-    if(a==='day'){const dt=new Date(day+'T12:00');dt.setDate(dt.getDate()+ +d.o);day=dt.toISOString().slice(0,10);rerender()}
+    const day=curDay();
+    if(a==='day'){dayOffset+=+d.o;rerender()}
     if(a==='goals')goalsSheet();
     if(a==='daytype'){S.dayType[day]=!dayIsTrain(day);save();rerender()}
     if(a==='water'){S.water[day]=Math.max(0,(S.water[day]||0)+ +d.v);save();rerender()}

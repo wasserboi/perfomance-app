@@ -19,16 +19,24 @@ const img=rec=>`<img src="data:image/jpeg;base64,${rec.data}">`;
 export async function renderGrid(){const g=el('pgrid');if(!g)return;const list=[...PH].reverse().slice(0,7);
   const cells=await Promise.all(list.map(async p=>{const rec=await get(p.id);return `<button data-a="pview" data-id="${p.id}">${rec&&rec.data?img(rec):'<div class="more">☁︎</div>'}<span>${fmtD(p.d)}</span></button>`}));
   g.innerHTML=cells.join('')+(PH.length>7?`<button class="more" data-a="pall">+${PH.length-7}</button>`:'')||'<div class="tiny" style="grid-column:1/-1">Noch keine Fotos.</div>'}
+let slideMode=true;
 export async function view(id,cmp){const rec=await ensure(id);if(!rec){toast('Foto nicht verfügbar (offline?)');return}
   const idx=PH.findIndex(x=>x.id===id),prev=PH[idx-1],next=PH[idx+1];const cmpRec=cmp?await ensure(cmp):null;
+  const cmpView=!cmpRec?'':slideMode
+    ?`<div class="pslide" id="pslide"><img class="base" src="data:image/jpeg;base64,${cmpRec.data}"><div class="top" id="ptop" style="clip-path:inset(0 50% 0 0)"><img src="data:image/jpeg;base64,${rec.data}"></div><div class="pdiv" id="pdiv" style="left:50%"></div></div>
+      <input type="range" id="pslider" min="0" max="100" value="50" class="mt2" style="width:100%">
+      <div class="row between tiny mt1"><span>${fmtD(cmpRec.d)}</span><span>${fmtD(rec.d)}</span></div>`
+    :`<div class="pcmp pview">${img(cmpRec)}${img(rec)}</div>`;
   sheet(`<h3>${fmtDL(rec.d+'T12:00')}${cmpRec?` <span class="tiny">vs. ${fmtD(cmpRec.d)}</span>`:''}</h3>
-    ${cmpRec?`<div class="pcmp pview">${img(cmpRec)}${img(rec)}</div>`:`<div class="pview">${img(rec)}</div>`}
+    ${cmpRec?cmpView:`<div class="pview">${img(rec)}</div>`}
     <div class="grid3 mt3"><button class="btn sm" data-x="prev" ${prev?'':'disabled'}>‹ Älter</button><button class="btn sm" data-x="cmp">${cmpRec?'Einzeln':'Vergleichen'}</button><button class="btn sm" data-x="next" ${next?'':'disabled'}>Neuer ›</button></div>
-    ${cmpRec?'':'<div class="tiny mt2">Vergleichen zeigt das älteste Foto links neben diesem.</div>'}
+    ${cmpRec?`<button class="btn ghost sm wide mt2" data-x="mode">${slideMode?'Nebeneinander anzeigen':'Schieberegler anzeigen'}</button>`:'<div class="tiny mt2">Vergleichen zeigt das älteste Foto links neben diesem.</div>'}
     <button class="btn ghost danger wide mt2" data-x="del">Foto löschen</button><button class="btn wide mt2" data-x="close">Schließen</button>`,{
     close:closeSheet,prev:()=>prev&&view(prev.id,cmp&&prev.id!==cmp?cmp:null),next:()=>next&&view(next.id,cmp&&next.id!==cmp?cmp:null),
     cmp:()=>view(id,cmp?null:(PH[0].id!==id?PH[0].id:(prev?prev.id:null))),
+    mode:()=>{slideMode=!slideMode;view(id,cmp)},
     del:async()=>{if(!confirm2('Foto löschen?'))return;await del(id);PH=PH.filter(x=>x.id!==id);S.photosDeleted=(S.photosDeleted||[]).concat(id);save();closeSheet();emit('photos')}});
+  const slider=el('pslider');if(slider)slider.oninput=()=>{const v=slider.value;el('ptop').style.clipPath=`inset(0 ${100-v}% 0 0)`;el('pdiv').style.left=v+'%'};
 }
 export async function viewAll(){sheet(`<h3>Alle Fotos (${PH.length})</h3><div class="pgrid wide" id="pall">${[...PH].reverse().map(p=>`<button data-x="open" data-id="${p.id}"><div class="more">…</div><span>${fmtD(p.d)}</span></button>`).join('')}</div><button class="btn wide mt3" data-x="close">Schließen</button>`,{close:closeSheet,open:b=>view(b.dataset.id)});
   for(const p of [...PH].reverse()){const rec=await get(p.id);const e=$(`#pall [data-id="${p.id}"]`);if(rec&&rec.data&&e)e.innerHTML=img(rec)+`<span>${fmtD(p.d)}</span>`}}

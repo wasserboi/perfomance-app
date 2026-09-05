@@ -25,6 +25,8 @@ el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
   try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
   location.reload()};
 export const CHANGES=[
+ {v:'37',t:['Fehler behoben: Makros zeigte nach Mitternacht noch den Vortag, wenn die App durchgehend offen blieb – Datum wird jetzt immer frisch berechnet und aktualisiert sich automatisch um 00:00']},
+ {v:'36',t:['Körper-Heatmap: Muskelgruppen-Volumen der Woche als Körperdiagramm (vorne/hinten)','PR-Wand: Chronik aller Bestleistungen','Foto-Vergleich mit Schieberegler','Grobe Kraftstandard-Einordnung bei Bankdrücken/Kniebeuge/Kreuzheben/Schulterdrücken','Wochenrückblick als teilbares Bild','Konfetti bei einem PR','Nächstes rundes Trainingsziel je Übung']},
  {v:'35',t:['Backup-Fehler behoben: Fotos/Snapshots werden beim Lesen jetzt vollständig gefunden (rekursiver Abruf)','Sync markiert Inhalte erst nach bestätigtem Commit als gesichert, nicht schon beim Hochladen','Automatischer Sicherungsstand jetzt vor jeder Ersetzung lokaler Daten, auch beim Import und beim Geräteabgleich']},
  {v:'34',t:['Speicherung aufgeteilt: Training und übrige Daten getrennt, spürbar weniger Schreibarbeit','Bestwerte je Übung als Index statt komplettem Neudurchsuchen bei jedem Satz','Automatischer Sicherungsstand vor jedem Wiederherstellen, rückgängig machbar']},
  {v:'33',t:['Daten liegen jetzt in der IndexedDB (kein 5-MB-Limit mehr), localStorage bleibt Notfallkopie','Schema-Versionierung mit Migrationen','Monats-Snapshots im Backup + Wiederherstellen aus der Historie','Prüfung beim Wiederherstellen, Konflikt-Erkennung bei zwei Geräten','Monatliche Erinnerung an ein lokales Backup']},
@@ -65,7 +67,9 @@ function monthlyExportReminder(){
   const mon=new Date().toISOString().slice(0,7);
   if(localStorage.getItem('perf.exportMonth')===mon)return;
   if(!localStorage.getItem('perf.seen'))return;// nicht beim allerersten Start
-  setTimeout(()=>{sheet(`<h3>Monatliches Backup</h3><div class="muted mb3">Lege einmal im Monat eine Sicherungsdatei in deine Dateien-App – unabhängig vom Cloud-Backup.</div>
+  setTimeout(()=>{
+    if(el('sheet').classList.contains('on'))return; // nicht mitten in einer offenen Eingabe dazwischenfunken
+    sheet(`<h3>Monatliches Backup</h3><div class="muted mb3">Lege einmal im Monat eine Sicherungsdatei in deine Dateien-App – unabhängig vom Cloud-Backup.</div>
     <button class="btn primary wide" data-x="exp">Backup-Datei erstellen</button><button class="btn wide mt2" data-x="later">Später</button>`,{
     later:()=>{localStorage.setItem('perf.exportMonth',mon);closeSheet()},
     exp:()=>{import('./ui.js').then(u=>u.dl('performance-'+mon+'.json',JSON.stringify(S),'application/json'));localStorage.setItem('perf.exportMonth',mon);closeSheet()}});},2500);
@@ -80,3 +84,13 @@ on('photos',()=>{if(currentTab()==='body')photos.renderGrid()});
 if(localStorage.getItem('perf.seen')!==APP_VERSION){const had=!!localStorage.getItem('perf.seen');localStorage.setItem('perf.seen',APP_VERSION);if(had)setTimeout(()=>toast('Aktualisiert auf Version '+APP_VERSION),800)}
 initState().then(()=>photos.loadMeta()).then(()=>{render(true);pullSync();checkUpdate();monthlyExportReminder()});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
+
+// ----- Automatischer Wechsel um Mitternacht -----
+// Tabs berechnen "heute" grundsätzlich frisch bei jedem Rendern (kein gecachtes Datum),
+// dadurch stimmt die Anzeige sofort nach jeder Interaktion. Diese Uhr sorgt zusätzlich dafür,
+// dass sich die Ansicht auch von selbst aktualisiert, wenn das Telefon einfach über Mitternacht
+// hinweg auf dem gleichen Bildschirm liegen bleibt, ohne dass jemand etwas antippt.
+let lastDay=new Date().toDateString();
+function checkDayRollover(){const d=new Date().toDateString();if(d!==lastDay){lastDay=d;rerender()}}
+setInterval(checkDayRollover,60000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkDayRollover()});

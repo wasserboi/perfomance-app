@@ -1,6 +1,8 @@
 import {S,save,STAGES,stageLabel,esc,fmtD,fmtDL,de,vol,totalKg,planWorkouts,lastSets,compare,prsFor,allTimeBest,e1rm,pctS,pctC,startWorkout,finishWorkout,today,touchWorkouts,rebuildBestsFull} from '../state.js';
 import {sheet,closeSheet,toast,prompt2,confirm2,rerender,render,svgCheck} from '../ui.js';
 import {moveItem} from './plans.js';
+import {burst} from '../confetti.js';
+import {shareWeekImage} from '../share.js';
 import {startTimer,stopTimer} from '../timer.js';
 
 let histN=8;
@@ -18,6 +20,7 @@ function overview(){
   return `<h1>Training<small>${new Date().toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'})}</small></h1>
   <h2 style="margin-top:0">Diese Woche</h2>
   <div class="week"><div class="stat"><b>${wk.length}</b><small>Einheiten</small></div><div class="stat"><b class="num">${de(wk.reduce((a,w)=>a+vol(w),0)/1000,{maximumFractionDigits:1})}</b><small>Tonnen</small></div><div class="stat"><b class="num">${weekStreak()}</b><small>Wochen in Folge</small></div></div>
+  ${wk.length?'<button class="btn ghost sm wide mb2" data-a="share">Wochenrückblick teilen</button>':''}
   ${S.workouts.length?`<div class="tiny mb2" style="margin-left:2px">${Math.round(wk.reduce((a,w)=>a+w.duration,0))?Math.round(wk.reduce((a,w)=>a+w.duration,0)/60)+' Minuten diese Woche · ':''}Insgesamt ${de(totalKg()/1000,{maximumFractionDigits:1})} t in ${S.workouts.length} Trainings seit ${new Date(S.workouts[0].date).toLocaleDateString('de-DE',{month:'short',year:'numeric'})}</div>`:''}
   <h2>Workout starten</h2>
   <div class="card stack">
@@ -91,6 +94,7 @@ export default{
     const A=S.active;
     if(a==='start'){startWorkout(d.id);render(true)}
     if(a==='more'){histN+=20;rerender()}
+    if(a==='share')shareWeekImage();
     if(a==='show')summarySheet(d.id);
     if(a==='cancel'&&confirm2('Training verwerfen?')){S.active=null;stopTimer();save();render(true)}
     if(a==='finish'){const w=finishWorkout();if(!w){toast('Keine Sätze abgehakt');return}stopTimer();render(true);summarySheet(w.id)}
@@ -98,7 +102,7 @@ export default{
     if(a==='done'){const s=A.exercises[d.i].sets[d.s];
       if(!s.done){const prev=lastSets(A.exercises[d.i].name);if(!s.w&&prev?.[d.s])s.w=prev[d.s].w;if(!s.r&&prev?.[d.s])s.r=prev[d.s].r;if(!s.w||!s.r){toast('kg und Reps eintragen');return}
         s.done=true;startTimer(S.settings.rest);if(navigator.vibrate)navigator.vibrate(30);
-        if(!s.wu){const b=allTimeBest(A.exercises[d.i].name);if(b.bw&&(s.w>b.bw||e1rm(s.w,s.r)>b.brm+0.5))toast('PR! '+s.w+' kg × '+s.r)}}
+        if(!s.wu){const b=allTimeBest(A.exercises[d.i].name);if(b.bw&&(s.w>b.bw||e1rm(s.w,s.r)>b.brm+0.5)){toast('PR! '+s.w+' kg × '+s.r);burst()}}}
       else s.done=false;save();rerender()}
     if(a==='menu')exMenu(+d.i);
     if(a==='wu'){const s=A.exercises[d.i].sets[d.s];s.wu=!s.wu;save();rerender()}
