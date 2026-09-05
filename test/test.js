@@ -150,6 +150,43 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
     const c=classifyStandard(lift,90,st.allTimeBest('Bankdrücken').brm);
     check('Kraftstandard liefert eine Stufe',typeof c.tierName==='string'&&c.ratio>0);
   }
+  // v38: Stangengewicht separat vom eingetragenen Zusatzgewicht
+  {
+    const st=await import(path.join(root,'js/state.js'));
+    // Prefill VOR dem Setzen des Stangengewichts festhalten, um exakt zu vergleichen
+    click('[data-tab=log]');click('[data-a=start][data-id]');
+    const prefillBefore=d.querySelector('input[data-f=w]').value;
+    click('[data-a=cancel]');
+    const before=st.allTimeBest('Bankdrücken').bw; // bisher ohne Stange gepflegt
+    check('Vorher: kein Stangengewicht hinterlegt',!st.barOf('Bankdrücken'));
+    st.setBarWeight('Bankdrücken',20);
+    check('Bestwert steigt nach Hinzufügen der Stange um genau 20 kg',st.allTimeBest('Bankdrücken').bw===before+20,'vorher='+before+' nachher='+st.allTimeBest('Bankdrücken').bw);
+    const vol1=st.vol(store().workouts.find(w=>w.exercises.some(e=>e.name==='Bankdrücken'&&e.sets.some(s=>!s.wu))));
+    check('Bewegte Tonnen enthalten die Stange',vol1>0);
+    // Eingabefeld bleibt unverändert (plates-only), nur die Auswertung rechnet die Stange dazu
+    click('[data-tab=log]');click('[data-a=start][data-id]');
+    const wIn=d.querySelector('input[data-f=w]');
+    check('Eingabefeld unverändert durch Stangengewicht (identisches Prefill wie vorher)',wIn&&wIn.value===prefillBefore,'vorher='+prefillBefore+' nachher='+wIn?.value);
+    check('Hinweis "Stange" erscheint bei der Main-Übung',/Stange/.test(d.querySelector('.ex .prev').textContent));
+    click('[data-a=cancel]');
+    // Kraftstandard nutzt jetzt automatisch die Gesamtlast (über den Bestwerte-Index)
+    const {findLift,classifyStandard}=await import(path.join(root,'js/standards.js'));
+    const lift=findLift('Bankdrücken');
+    const withBar=classifyStandard(lift,90,st.allTimeBest('Bankdrücken').brm);
+    st.setBarWeight('Bankdrücken',0);
+    const withoutBar=classifyStandard(lift,90,st.allTimeBest('Bankdrücken').brm);
+    check('Kraftstandard-Verhältnis ist mit Stange höher als ohne',withBar.ratio>withoutBar.ratio);
+    st.setBarWeight('Bankdrücken',20); // für die folgenden Prüfungen wieder aktivieren
+    // Sammel-Zuweisung für alle "(Barbell)"-Übungen
+    st.S.workouts.push({id:'barbelltest',date:new Date().toISOString(),name:'Test',exercises:[{name:'Squat (Barbell)',sets:[{w:60,r:5,done:true}]}]});st.touchWorkouts();st.save();
+    click('[data-tab=plans]');click('[data-a=settings]');click('[data-x=exmgr]');
+    check('Sammel-Button für Langhantel-Übungen erscheint',!!d.querySelector('[data-x=bulkbar]'),d.querySelector('#sheet').textContent.slice(0,120));
+    click('[data-x=bulkbar]');
+    check('Sammel-Zuweisung setzt Stangengewicht',st.barOf('Squat (Barbell)')===20);
+    click('[data-x=close]');
+    st.S.workouts=st.S.workouts.filter(w=>w.id!=='barbelltest');delete st.S.barbell['Squat (Barbell)'];st.touchWorkouts();st.save(); // Testdaten wieder entfernen, damit nachfolgende Tests unverändert bleiben
+  }
+
   {
     // Foto-Vergleich: zwei Fotos anlegen, Slider prüfen
     const {photoPut}=await import(path.join(root,'js/store.js'));

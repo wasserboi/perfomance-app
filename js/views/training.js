@@ -1,4 +1,4 @@
-import {S,save,STAGES,stageLabel,esc,fmtD,fmtDL,de,vol,totalKg,planWorkouts,lastSets,compare,prsFor,allTimeBest,e1rm,pctS,pctC,startWorkout,finishWorkout,today,touchWorkouts,rebuildBestsFull} from '../state.js';
+import {S,save,STAGES,stageLabel,esc,fmtD,fmtDL,de,vol,totalKg,planWorkouts,lastSets,compare,prsFor,allTimeBest,barOf,e1rm,pctS,pctC,startWorkout,finishWorkout,today,touchWorkouts,rebuildBestsFull} from '../state.js';
 import {sheet,closeSheet,toast,prompt2,confirm2,rerender,render,svgCheck} from '../ui.js';
 import {moveItem} from './plans.js';
 import {burst} from '../confetti.js';
@@ -43,7 +43,7 @@ function active(){
     <div class="exhead"><div class="grow"><div class="name">${esc(ex.name)}</div><div class="tags mt1">${ex.main?'<span class="tag main">Main</span>':''}${ex.type?`<span class="tag">${ex.type}</span>`:''}${ex.sug?`<span class="sug">↑ +${String(ex.sug).replace('.',',')} kg</span>`:''}${S.exNotes[ex.name]?'<span class="tag note-tag">✎</span>':''}</div></div>
       <button class="icon more" data-a="menu" data-i="${ei}" aria-label="Optionen">···</button></div>
     ${ex.main?`<div class="stagebar">${STAGES.map((c,i)=>`<span class="${i===ex.stage?'on':i<ex.stage?'ok':''}">${c.sets}×${c.reps}</span>`).join('')}</div>`:''}
-    <div class="prev">${ex.main?`Ziel ${STAGES[ex.stage].sets} × ${STAGES[ex.stage].reps} mit ${ex.sets.find(s=>!s.wu)?.w} kg`:(prev?'Letztes Mal '+prev.slice(0,4).map(s=>s.w+'×'+s.r).join(' · ')+(prev.length>4?' …':''):'Erstes Mal')+(ex.targetReps?' · Ziel '+ex.targetReps+' Reps':'')}</div>
+    <div class="prev">${ex.main?(()=>{const bar=barOf(ex.name),w=ex.sets.find(s=>!s.wu)?.w;return `Ziel ${STAGES[ex.stage].sets} × ${STAGES[ex.stage].reps} mit ${w} kg`+(bar?` <span class="tiny">(+ ${bar} kg Stange = ${w+bar} kg gesamt)</span>`:'')})():(prev?'Letztes Mal '+prev.slice(0,4).map(s=>s.w+'×'+s.r).join(' · ')+(prev.length>4?' …':''):'Erstes Mal')+(ex.targetReps?' · Ziel '+ex.targetReps+' Reps':'')}</div>
     ${S.exNotes[ex.name]?`<div class="note">${esc(S.exNotes[ex.name])}</div>`:''}
     <div class="setbox">
       <div class="sets">
@@ -102,7 +102,7 @@ export default{
     if(a==='done'){const s=A.exercises[d.i].sets[d.s];
       if(!s.done){const prev=lastSets(A.exercises[d.i].name);if(!s.w&&prev?.[d.s])s.w=prev[d.s].w;if(!s.r&&prev?.[d.s])s.r=prev[d.s].r;if(!s.w||!s.r){toast('kg und Reps eintragen');return}
         s.done=true;startTimer(S.settings.rest);if(navigator.vibrate)navigator.vibrate(30);
-        if(!s.wu){const b=allTimeBest(A.exercises[d.i].name);if(b.bw&&(s.w>b.bw||e1rm(s.w,s.r)>b.brm+0.5)){toast('PR! '+s.w+' kg × '+s.r);burst()}}}
+        if(!s.wu){const nm=A.exercises[d.i].name,bar=barOf(nm),tw=s.w+bar,b=allTimeBest(nm);if(b.bw&&(tw>b.bw||e1rm(tw,s.r)>b.brm+0.5)){toast('PR! '+(bar?tw+' kg (inkl. Stange) × '+s.r:s.w+' kg × '+s.r));burst()}}}
       else s.done=false;save();rerender()}
     if(a==='menu')exMenu(+d.i);
     if(a==='wu'){const s=A.exercises[d.i].sets[d.s];s.wu=!s.wu;save();rerender()}

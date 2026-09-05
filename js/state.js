@@ -1,7 +1,7 @@
 import {kvGet,kvSet,mirror,readMirror} from './store.js';
 import {classify} from './muscles.js';
 // ===== Konstanten =====
-export const APP_VERSION='37';
+export const APP_VERSION='38';
 export const SCHEMA=3;
 export const KEY='perf.v1';
 export const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];
@@ -10,7 +10,7 @@ export const MEAS=[['waist','Bauch'],['chest','Brust'],['armL','Arm links'],['ar
 export const stageLabel=st=>STAGES[st].sets+'×'+STAGES[st].reps;
 
 const def={plans:[],workouts:[],weights:[],macros:{},foods:[],meals:[],measures:[],exNotes:{},dayType:{},
-  goals:{p:180,c:250,f:80},goalsRest:null,goalMode:'hold',water:{},photosDeleted:[],supps:[],checks:{},waterGoal:3000,bests:{},settings:{rest:90,overload:2.5},active:null};
+  goals:{p:180,c:250,f:80},goalsRest:null,goalMode:'hold',water:{},photosDeleted:[],supps:[],checks:{},waterGoal:3000,bests:{},barbell:{},settings:{rest:90,overload:2.5},active:null};
 
 // ===== State =====
 export const clone=o=>JSON.parse(JSON.stringify(o));
@@ -85,9 +85,13 @@ export const de=(n,opt)=>Number(n).toLocaleString('de-DE',opt);
 
 // ===== Training-Logik =====
 export const work=e=>e.sets.filter(s=>!s.wu);
-export const vol=w=>w.exercises.reduce((a,e)=>a+e.sets.filter(s=>s.done&&!s.wu).reduce((b,s)=>b+s.w*s.r,0),0);
+// Stangengewicht je Übung (kg), separat vom eingetragenen Zusatzgewicht. Standard 0 = keine Änderung.
+export const barOf=name=>S.barbell[name]||0;
+export function setBarWeight(name,kg){if(kg>0)S.barbell[name]=kg;else delete S.barbell[name];rebuildBestsFull();save()}
+export function setBarWeightBulk(names,kg){names.forEach(n=>{if(kg>0)S.barbell[n]=kg;else delete S.barbell[n]});rebuildBestsFull();save()}
+export const vol=w=>w.exercises.reduce((a,e)=>{const bar=barOf(e.name);return a+e.sets.filter(s=>s.done&&!s.wu).reduce((b,s)=>b+(s.w+bar)*s.r,0)},0);
 export const totalKg=()=>S.workouts.reduce((a,w)=>a+vol(w),0);
-export const bestRm=e=>work(e).reduce((a,s)=>Math.max(a,e1rm(s.w,s.r)),0);
+export const bestRm=e=>{const bar=barOf(e.name);return work(e).reduce((a,s)=>Math.max(a,e1rm(s.w+bar,s.r)),0)};
 export const planWorkouts=(planId,name)=>S.workouts.filter(w=>planId?w.planId===planId:w.name===name);
 
 export function lastSets(name){
@@ -106,9 +110,9 @@ export function compare(w,ref){
 }
 export function prsFor(w){
   const before=S.workouts.filter(x=>x.date<w.date);const out={};let n=0;
-  w.exercises.forEach(e=>{const hist=[];before.forEach(x=>{const h=x.exercises.find(y=>y.name===e.name);if(h)hist.push(...work(h))});
+  w.exercises.forEach(e=>{const bar=barOf(e.name);const hist=[];before.forEach(x=>{const h=x.exercises.find(y=>y.name===e.name);if(h)hist.push(...work(h).map(s=>({w:s.w+bar,r:s.r})))});
     const bw=Math.max(0,...hist.map(s=>s.w)),brm=Math.max(0,...hist.map(s=>e1rm(s.w,s.r))),bv=Math.max(0,...hist.map(s=>s.w*s.r));
-    const ws=work(e);if(!ws.length)return;const cw=Math.max(...ws.map(s=>s.w)),crm=Math.max(...ws.map(s=>e1rm(s.w,s.r))),cv=Math.max(...ws.map(s=>s.w*s.r));
+    const ws0=work(e);if(!ws0.length)return;const ws=ws0.map(s=>({w:s.w+bar,r:s.r}));const cw=Math.max(...ws.map(s=>s.w)),crm=Math.max(...ws.map(s=>e1rm(s.w,s.r))),cv=Math.max(...ws.map(s=>s.w*s.r));
     const p=[];if(hist.length&&cw>bw)p.push('Gewicht');if(hist.length&&crm>brm+0.5)p.push('1RM');if(hist.length&&cv>bv)p.push('Volumen');
     if(p.length){out[e.name]=p;n+=p.length}});
   return{per:out,n};
@@ -116,8 +120,8 @@ export function prsFor(w){
 // Vorberechneter Index der Bestwerte je Übung (statt bei jedem Satz die komplette Historie zu durchsuchen)
 export function allTimeBest(name){return S.bests[name]||{bw:0,brm:0,bv:0}}
 export function rebuildBests(w){ // ein Training in den bestehenden Index einpflegen (O(Sätze dieses Trainings))
-  w.exercises.forEach(e=>{const b=S.bests[e.name]||{bw:0,brm:0,bv:0};
-    work(e).forEach(t=>{b.bw=Math.max(b.bw,t.w);b.brm=Math.max(b.brm,e1rm(t.w,t.r));b.bv=Math.max(b.bv,t.w*t.r)});
+  w.exercises.forEach(e=>{const bar=barOf(e.name);const b=S.bests[e.name]||{bw:0,brm:0,bv:0};
+    work(e).forEach(t=>{const tw=t.w+bar;b.bw=Math.max(b.bw,tw);b.brm=Math.max(b.brm,e1rm(tw,t.r));b.bv=Math.max(b.bv,tw*t.r)});
     S.bests[e.name]=b});
 }
 // Chronik aller jemals erreichten Bestleistungen (PR-Wand). Reine Funktion, läuft einmal beim Öffnen.
@@ -126,10 +130,10 @@ export function prWall(){
   const chron=[...S.workouts].sort((a,b)=>a.date<b.date?-1:1);
   chron.forEach(w=>{
     w.exercises.forEach(e=>{
-      const ws=work(e);if(!ws.length)return;
+      const ws0=work(e);if(!ws0.length)return;const bar=barOf(e.name);
       const had=seen.has(e.name);const b=best[e.name]||{bw:0,brm:0,bv:0};
       let hitW=false,hitR=false,hitV=false;
-      ws.forEach(s=>{if(s.w>b.bw){b.bw=s.w;hitW=true}const rm=e1rm(s.w,s.r);if(rm>b.brm+.05){b.brm=rm;hitR=true}const v=s.w*s.r;if(v>b.bv){b.bv=v;hitV=true}});
+      ws0.forEach(s0=>{const s={w:s0.w+bar,r:s0.r};if(s.w>b.bw){b.bw=s.w;hitW=true}const rm=e1rm(s.w,s.r);if(rm>b.brm+.05){b.brm=rm;hitR=true}const v=s.w*s.r;if(v>b.bv){b.bv=v;hitV=true}});
       best[e.name]=b;seen.add(e.name);
       if(had){
         if(hitW)events.push({date:w.date,exercise:e.name,type:'Gewicht',value:b.bw+' kg'});
@@ -156,15 +160,15 @@ export function nextRoundGoal(name,step=10){
   return{current:b.bw,target,pct:Math.min(100,Math.round(b.bw/target*100))};
 }
 export function computeBests(workouts){ // reine Funktion, unabhängig vom globalen State (auch für Migration nutzbar)
-  const bests={};(workouts||[]).forEach(w=>w.exercises.forEach(e=>{const b=bests[e.name]||{bw:0,brm:0,bv:0};
+  const bests={};(workouts||[]).forEach(w=>w.exercises.forEach(e=>{const bar=barOf(e.name);const b=bests[e.name]||{bw:0,brm:0,bv:0};
     const ws=(e.sets||[]).filter(s=>!s.wu);
-    ws.forEach(t=>{b.bw=Math.max(b.bw,t.w);b.brm=Math.max(b.brm,e1rm(t.w,t.r));b.bv=Math.max(b.bv,t.w*t.r)});bests[e.name]=b}));
+    ws.forEach(t=>{const tw=t.w+bar;b.bw=Math.max(b.bw,tw);b.brm=Math.max(b.brm,e1rm(tw,t.r));b.bv=Math.max(b.bv,tw*t.r)});bests[e.name]=b}));
   return bests;
 }
 export function rebuildBestsFull(){S.bests=computeBests(S.workouts)} // komplette Neuberechnung, z. B. nach Umbenennen/Zusammenführen oder Wiederherstellen
 export function allExercises(){const m={};S.workouts.forEach(w=>w.exercises.forEach(e=>m[e.name]=w.date));return Object.keys(m).sort((a,b)=>m[b]<m[a]?-1:1)}
 export function recentExercises(n=6){const seen=[];for(let i=S.workouts.length-1;i>=0&&seen.length<n;i--)S.workouts[i].exercises.forEach(e=>{if(!seen.includes(e.name))seen.push(e.name)});return seen}
-export function exHistory(name){return S.workouts.map(w=>{const e=w.exercises.find(x=>x.name===name);if(!e)return null;const ws=work(e);if(!ws.length)return null;const best=ws.reduce((a,s)=>e1rm(s.w,s.r)>e1rm(a.w,a.r)?s:a,ws[0]);return{d:w.date,w:best.w,r:best.r,rm:e1rm(best.w,best.r),vol:ws.reduce((a,s)=>a+s.w*s.r,0)}}).filter(x=>x&&x.rm>0)}
+export function exHistory(name){const bar=barOf(name);return S.workouts.map(w=>{const e=w.exercises.find(x=>x.name===name);if(!e)return null;const ws0=work(e);if(!ws0.length)return null;const ws=ws0.map(s=>({w:s.w+bar,r:s.r}));const best=ws.reduce((a,s)=>e1rm(s.w,s.r)>e1rm(a.w,a.r)?s:a,ws[0]);return{d:w.date,w:best.w,r:best.r,rm:e1rm(best.w,best.r),vol:ws.reduce((a,s)=>a+s.w*s.r,0)}}).filter(x=>x&&x.rm>0)}
 
 export function renameExercise(from,to){if(!to||from===to)return;
   S.workouts.forEach(w=>{const a=w.exercises.find(e=>e.name===to),b=w.exercises.find(e=>e.name===from);if(b){if(a){a.sets=a.sets.concat(b.sets);w.exercises=w.exercises.filter(e=>e!==b)}else b.name=to}});

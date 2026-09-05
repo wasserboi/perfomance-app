@@ -25,6 +25,7 @@ el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
   try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
   location.reload()};
 export const CHANGES=[
+ {v:'38',t:['Stangengewicht separat vom eingetragenen Zusatzgewicht: unter Übungen verwalten hinterlegbar, Sammel-Button für alle "(Barbell)"-Übungen. Zählt jetzt korrekt mit bei bewegten Tonnen, geschätztem 1RM, Kraftstandard und PR-Wand – Eingabefeld bleibt unverändert']},
  {v:'37',t:['Fehler behoben: Makros zeigte nach Mitternacht noch den Vortag, wenn die App durchgehend offen blieb – Datum wird jetzt immer frisch berechnet und aktualisiert sich automatisch um 00:00']},
  {v:'36',t:['Körper-Heatmap: Muskelgruppen-Volumen der Woche als Körperdiagramm (vorne/hinten)','PR-Wand: Chronik aller Bestleistungen','Foto-Vergleich mit Schieberegler','Grobe Kraftstandard-Einordnung bei Bankdrücken/Kniebeuge/Kreuzheben/Schulterdrücken','Wochenrückblick als teilbares Bild','Konfetti bei einem PR','Nächstes rundes Trainingsziel je Übung']},
  {v:'35',t:['Backup-Fehler behoben: Fotos/Snapshots werden beim Lesen jetzt vollständig gefunden (rekursiver Abruf)','Sync markiert Inhalte erst nach bestätigtem Commit als gesichert, nicht schon beim Hochladen','Automatischer Sicherungsstand jetzt vor jeder Ersetzung lokaler Daten, auch beim Import und beim Geräteabgleich']},

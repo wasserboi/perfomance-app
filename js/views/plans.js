@@ -1,4 +1,4 @@
-import {S,save,clone,uid,esc,TYPES,stageLabel,APP_VERSION,today,e1rm,renameExercise,replaceState} from '../state.js';
+import {S,save,clone,uid,esc,TYPES,stageLabel,APP_VERSION,today,e1rm,renameExercise,replaceState,setBarWeight,setBarWeightBulk} from '../state.js';
 import {sheet,closeSheet,toast,confirm2,rerender,dl,csv,el} from '../ui.js';
 import {SY,syncText,connect,pushSync,pullSync,listSnapshots,restoreSnapshot,lastSafetyBackup,safetyBackup} from '../sync.js';
 import {checkUpdate,changelogSheet} from '../app.js';
@@ -75,21 +75,32 @@ export function settingsSheet(){
     exmgr:()=>exMgrSheet(),
     export:()=>dl('performance-backup-'+today()+'.json',JSON.stringify(S),'application/json'),
     import:()=>{const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=()=>{const r=new FileReader();r.onload=async()=>{try{const d=JSON.parse(r.result);await safetyBackup();replaceState(d);save();toast('Backup geladen');closeSheet();rerender()}catch(e){toast('Ungültige Datei')}};r.readAsText(i.files[0])};i.click()},
-    csvw:()=>{const rows=[['Datum','Plan','Übung','Satz','Aufwärmen','kg','Reps','e1RM']];S.workouts.forEach(w=>w.exercises.forEach(e=>e.sets.forEach((st,i)=>rows.push([w.date.slice(0,10),w.name,e.name,i+1,st.wu?'ja':'',st.w,st.r,st.wu?'':Math.round(e1rm(st.w,st.r))]))));dl('training-'+today()+'.csv',csv(rows),'text/csv')},
+    csvw:()=>{const rows=[['Datum','Plan','Übung','Satz','Aufwärmen','kg (Eintrag)','Stange (kg)','Reps','e1RM (inkl. Stange)']];S.workouts.forEach(w=>w.exercises.forEach(e=>{const bar=S.barbell[e.name]||0;e.sets.forEach((st,i)=>rows.push([w.date.slice(0,10),w.name,e.name,i+1,st.wu?'ja':'',st.w,bar||'',st.r,st.wu?'':Math.round(e1rm(st.w+bar,st.r))]))}));dl('training-'+today()+'.csv',csv(rows),'text/csv')},
     csvm:()=>{const rows=[['Datum','Produkt','Menge','Einheit','Protein','Carbs','Fett','kcal']];Object.keys(S.macros).sort().forEach(dd=>S.macros[dd].forEach(i=>rows.push([dd,i.n,i.amount||'',i.unit||'',i.p,i.c,i.f,i.kcal||Math.round(i.p*4+i.c*4+i.f*9)])));dl('ernaehrung-'+today()+'.csv',csv(rows),'text/csv')},
     upd:()=>checkUpdate(true),changelog:changelogSheet});
 }
 
 function exMgrSheet(sel){
   const counts={};S.workouts.forEach(w=>w.exercises.forEach(e=>counts[e.name]=(counts[e.name]||0)+1));const names=Object.keys(counts).sort((a,b)=>a.localeCompare(b,'de'));
-  if(!sel){sheet(`<h3>Übungen (${names.length})</h3><input id="exq" placeholder="Suchen…" class="mb2"><div class="list" id="exl">${names.map(n=>`<button class="food" data-x="pick" data-n="${esc(n)}"><span class="fn">${esc(n)}</span><span class="fm">${counts[n]}×</span></button>`).join('')}</div><button class="btn wide mt3" data-x="close">Schließen</button>`,
-      {close:closeSheet,pick:b=>exMgrSheet(b.dataset.n),_input:ev=>{if(ev.target.id!=='exq')return;const q=ev.target.value.toLowerCase();document.querySelectorAll('#exl .food').forEach(b=>b.style.display=b.dataset.n.toLowerCase().includes(q)?'':'none')}});return}
+  if(!sel){const barbellNames=names.filter(n=>/\(barbell\)|langhantel/i.test(n));
+    sheet(`<h3>Übungen (${names.length})</h3>
+    ${barbellNames.length?`<button class="btn wide mb2" data-x="bulkbar">Für alle ${barbellNames.length} Langhantel-Übungen 20 kg Stange übernehmen</button><div class="tiny mb3">Erkannt an "(Barbell)" im Namen. Zählt die Stange zu jedem eingetragenen Gewicht dazu – für Kraftstandard, PR-Wand, bewegte Tonnen und geschätztes 1RM.</div>`:''}
+    <input id="exq" placeholder="Suchen…" class="mb2"><div class="list" id="exl">${names.map(n=>`<button class="food" data-x="pick" data-n="${esc(n)}"><span class="fn">${esc(n)}${S.barbell[n]?` <span class="tag">+${S.barbell[n]} kg Stange</span>`:''}</span><span class="fm">${counts[n]}×</span></button>`).join('')}</div><button class="btn wide mt3" data-x="close">Schließen</button>`,
+      {close:closeSheet,pick:b=>exMgrSheet(b.dataset.n),
+       bulkbar:()=>{if(!confirm2('Für '+barbellNames.length+' Übungen 20 kg Stangengewicht übernehmen? Einzeln anpassbar.'))return;setBarWeightBulk(barbellNames,20);toast('Übernommen');rerender();exMgrSheet()},
+       _input:ev=>{if(ev.target.id!=='exq')return;const q=ev.target.value.toLowerCase();document.querySelectorAll('#exl .food').forEach(b=>b.style.display=b.dataset.n.toLowerCase().includes(q)?'':'none')}});return}
+  const bar=S.barbell[sel]||'';
   sheet(`<h3>${esc(sel)}</h3><div class="tiny mb3">${counts[sel]} Trainings</div>
     <div class="field"><label class="f">Umbenennen</label><input id="exn" value="${esc(sel)}"></div><button class="btn wide mb4" data-x="rename">Umbenennen</button>
+    <div class="field"><label class="f">Stangengewicht (kg) – zusätzlich zum eingetragenen Gewicht</label><input type="number" inputmode="decimal" step="0.5" id="exbar" value="${bar}" placeholder="0"></div>
+    <div class="mb4">${[0,15,20,25].map(v=>`<button class="chip" data-x="barq" data-v="${v}">${v||'keine'}${v?' kg':''}</button>`).join('')}</div>
+    <button class="btn wide mb4" data-x="savebar">Speichern</button>
     <div class="field"><label class="f">Zusammenführen mit</label><select id="exm"><option value="">– wählen –</option>${names.filter(n=>n!==sel).map(n=>`<option>${esc(n)}</option>`).join('')}</select></div><button class="btn wide" data-x="merge">Zusammenführen</button><div class="tiny mt2">"${esc(sel)}" geht in der gewählten Übung auf; deren Name bleibt.</div>
     <button class="btn ghost wide mt4" data-x="back">Zurück</button>`,{
     back:()=>exMgrSheet(),
     rename:()=>{const to=el('exn').value.trim();if(!to)return;if(counts[to]&&to!==sel&&!confirm2('"'+to+'" existiert schon – zusammenführen?'))return;renameExercise(sel,to);toast('Umbenannt');rerender();exMgrSheet()},
+    barq:b=>{el('exbar').value=b.dataset.v},
+    savebar:()=>{setBarWeight(sel,+el('exbar').value||0);toast('Gespeichert');rerender();exMgrSheet(sel)},
     merge:()=>{const to=el('exm').value;if(!to||!confirm2(`"${sel}" in "${to}" zusammenführen?`))return;renameExercise(sel,to);toast('Zusammengeführt');rerender();exMgrSheet()}});
 }
 
