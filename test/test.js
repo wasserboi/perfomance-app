@@ -136,7 +136,7 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
     check('PR-Wand ist absteigend sortiert',wall.every((e,i)=>i===0||wall[i-1].date>=e.date));
     click('[data-tab=progress]');
     const exSel=d.getElementById('pexSel');if(exSel){exSel.value='Bankdrücken';exSel.dispatchEvent(new w.Event('change',{bubbles:true}))}
-    check('Heatmap-Karte sichtbar',!!d.querySelector('.body-svg svg'));
+    check('Heatmap-Karte vorhanden (eingeklappt)',!!d.querySelector('[data-a=bopen]'));
     check('Kraftstandard-Karte (Bankdrücken)',/Kraftstandard/.test(d.body.textContent));
     check('Nächstes-Ziel-Karte',/Nächstes Ziel/.test(d.body.textContent));
     click('[data-a=wall]');await sleep(50);
@@ -364,6 +364,38 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
     check('Main-Übung (Gewicht/Stufe) unangetastet',after.exercises[0].main&&after.exercises[0].state.weight===before.exercises[0].state.weight);
     check('Neue Übung mit 4 Sätzen à 12 Reps übernommen',after.exercises[1].sets===4&&after.exercises[1].reps===12,JSON.stringify(after.exercises[1]));
     click('[data-x=close]');
+  }
+  // v41: Fortschritt umgebaut – Heatmap eingeklappt, Makro-Treue, Kraftentwicklung, Fotovergleich
+  {
+    const st=await import(path.join(root,'js/state.js'));
+    // Makros für ein paar Tage anlegen
+    for(let i=0;i<8;i++){const dt=new Date();dt.setDate(dt.getDate()-i);const dd=dt.toISOString().slice(0,10);st.S.macros[dd]=[{n:'x',p:180,c:100,f:50,kcal:1500}]}
+    st.save();
+    click('[data-tab=progress]');
+    check('Heatmap standardmäßig eingeklappt',!d.querySelector('.body-svg')&&!!d.querySelector('[data-a=bopen]'));
+    click('[data-a=bopen]');
+    check('Heatmap lässt sich aufklappen',!!d.querySelector('.body-svg svg'));
+    click('[data-a=bopen]');
+    check('Heatmap lässt sich wieder einklappen',!d.querySelector('.body-svg'));
+    check('Makro-Treue-Karte vorhanden',/Makro-Treue/.test(d.body.textContent)&&!!d.getElementById('cMacro'));
+    click('[data-a=mmetric][data-v=k]');check('Makro-Metrik wechselbar (Kalorien)',/Kalorien in %/.test(d.body.textContent));
+    click('[data-a=mrange][data-v="182"]');check('Makro-Zeitraum wechselbar (6 Monate)',[...d.querySelectorAll('[data-a=mrange]')].find(b=>b.classList.contains('on')).dataset.v==='182');
+    const adh=st.macroAdherence('k',30);check('macroAdherence berechnet % vom Ziel',adh.length>=7&&adh.every(x=>x.y>0));
+    check('Kraftentwicklung-Karte vorhanden',/Kraftentwicklung/.test(d.body.textContent)&&!!d.getElementById('cStrength'));
+    const strend=st.strengthTrend(365);check('strengthTrend liefert eine aufsteigende Main-Kurve',strend.length>=1&&strend[strend.length-1].y>=strend[0].y,JSON.stringify(strend));
+    click('[data-a=srange][data-v="365"]');check('Kraft-Zeitraum wechselbar (1 Jahr)',[...d.querySelectorAll('[data-a=srange]')].find(b=>b.classList.contains('on')).dataset.v==='365');
+    // Fotovergleich: Paarung ~30 Tage (eigene Fixtures mit passendem Abstand)
+    const {photoPut}=await import(path.join(root,'js/store.js'));
+    const photosMod=await import(path.join(root,'js/photos.js'));
+    const dNew=new Date(),dOld=new Date();dOld.setDate(dOld.getDate()-30);
+    await photoPut({id:'pair_new',d:dNew.toISOString().slice(0,10),data:'/9j/x',synced:false});
+    await photoPut({id:'pair_old',d:dOld.toISOString().slice(0,10),data:'/9j/y',synced:false});
+    await photosMod.loadMeta();
+    const pairs=st.monthlyPhotoPairs(photosMod.PH);
+    check('Fotovergleich findet ein Paar mit ~30 Tagen Abstand',pairs.length>=1&&pairs[0].days>=24&&pairs[0].days<=36,JSON.stringify(pairs));
+    check('Fotovergleich-Karte im UI',/Fotovergleich/.test(d.body.textContent));
+    await sleep(80);
+    check('Übungs-Detailbereich weiterhin vorhanden, nur weiter unten',/Übung im Detail/.test(d.body.textContent)&&!!d.getElementById('pexSel'));
   }
   check('Keine JS-Fehler',errs.length===0,errs.join(' | '));
   console.log(fails?`\n${fails} Test(s) fehlgeschlagen`:'\nAlle Tests bestanden');process.exit(fails?1:0);

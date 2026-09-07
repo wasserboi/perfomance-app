@@ -1,15 +1,17 @@
-// Geglättete Linie mit Verlauf; pts=[{d,y}], raw=optional Punkte
-export function lineChart(cv,pts,raw,unit=''){
+// Geglättete Linie mit Verlauf; pts=[{d,y}], raw=optional Punkte, opts={ref: Ziel-Linie}
+export function lineChart(cv,pts,raw,unit='',opts={}){
   if(!cv)return;const dpr=devicePixelRatio||1,W=cv.clientWidth||340,H=190;cv.width=W*dpr;cv.height=H*dpr;const c=cv.getContext('2d');c.scale(dpr,dpr);
-  const cs=getComputedStyle(document.body),acc=cs.getPropertyValue('--accent2').trim()||'#5d86ef',ink3=cs.getPropertyValue('--ink3').trim()||'#6f7885',ink2=cs.getPropertyValue('--ink2').trim()||'#a4acb8';
+  const cs=getComputedStyle(document.body),acc=cs.getPropertyValue('--accent2').trim()||'#5d86ef',ink3=cs.getPropertyValue('--ink3').trim()||'#6f7885',ink2=cs.getPropertyValue('--ink2').trim()||'#a4acb8',warn=cs.getPropertyValue('--warn').trim()||'#e8a33f';
   if(pts.length<1){c.fillStyle=ink3;c.font='14px -apple-system,sans-serif';c.fillText('Noch keine Daten',10,30);return}
-  const L=34,R=54,T=16,B=24,ys=pts.map(p=>p.y).concat((raw||[]).map(p=>p.y));
+  const L=34,R=54,T=16,B=24,ys=pts.map(p=>p.y).concat((raw||[]).map(p=>p.y)).concat(opts.ref?[opts.ref]:[]);
   let lo=Math.min(...ys),hi=Math.max(...ys);if(hi===lo){hi+=5;lo-=5}const pad=(hi-lo)*.18;lo=Math.max(0,lo-pad);hi+=pad;
   const t0=new Date(pts[0].d).getTime(),t1=new Date(pts[pts.length-1].d).getTime(),span=Math.max(1,t1-t0);
   const X=d=>L+(W-L-R)*((new Date(d).getTime()-t0)/span),Y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
   c.font='11px -apple-system,sans-serif';c.fillStyle=ink3;c.textAlign='right';c.strokeStyle='rgba(255,255,255,.07)';c.lineWidth=1;
   for(let k=0;k<=2;k++){const v=lo+(hi-lo)*k/2,y=Y(v);c.beginPath();c.moveTo(L,y);c.lineTo(W-R,y);c.stroke();c.fillText(Math.round(v),L-6,y+4)}
   c.textAlign='center';const n=4;for(let k=0;k<=n;k++){const t=t0+span*k/n;c.fillText(new Date(t).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}),L+(W-L-R)*k/n,H-7)}
+  if(opts.ref!=null){const y=Y(opts.ref);c.save();c.setLineDash([4,4]);c.strokeStyle=warn;c.lineWidth=1.5;c.beginPath();c.moveTo(L,y);c.lineTo(W-R,y);c.stroke();c.restore();
+    c.fillStyle=warn;c.textAlign='left';c.font='600 11px -apple-system,sans-serif';c.fillText(opts.refLabel||'Ziel',W-R+6,y+4)}
   const P=pts.map(p=>[X(p.d),Y(p.y)]);
   const path=()=>{c.beginPath();c.moveTo(P[0][0],P[0][1]);for(let i=0;i<P.length-1;i++){const p0=P[i-1]||P[i],p1=P[i],p2=P[i+1],p3=P[i+2]||p2;c.bezierCurveTo(p1[0]+(p2[0]-p0[0])/6,p1[1]+(p2[1]-p0[1])/6,p2[0]-(p3[0]-p1[0])/6,p2[1]-(p3[1]-p1[1])/6,p2[0],p2[1])}};
   if(P.length>1){path();c.lineTo(P[P.length-1][0],H-B);c.lineTo(P[0][0],H-B);c.closePath();const g=c.createLinearGradient(0,T,0,H-B);g.addColorStop(0,'rgba(93,134,239,.35)');g.addColorStop(1,'rgba(93,134,239,0)');c.fillStyle=g;c.fill()}

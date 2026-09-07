@@ -1,7 +1,7 @@
 import {kvGet,kvSet,mirror,readMirror} from './store.js';
 import {classify} from './muscles.js';
 // ===== Konstanten =====
-export const APP_VERSION='40';
+export const APP_VERSION='41';
 export const SCHEMA=3;
 export const KEY='perf.v1';
 export const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];
@@ -154,6 +154,47 @@ export function weeklyMuscleVolume(){
   return out;
 }
 // Nächstes rundes Trainingsziel für eine Übung, auf Basis des aktuellen Bestwerts
+// Makro-Treue über Zeit: pro Tag mit Einträgen der Anteil vom jeweiligen Tagesziel (Trainings-/Ruhetag),
+// z. B. für 'p' (Protein) oder 'k' (Kalorien). Ergibt Punkte um 100 % herum.
+export function macroAdherence(metric,days){
+  const cut=new Date(Date.now()-days*864e5).toISOString().slice(0,10);
+  const dates=Object.keys(S.macros).filter(d=>d>=cut&&(S.macros[d]||[]).length).sort();
+  return dates.map(d=>{
+    const items=S.macros[d],g=dayIsTrain(d)?S.goals:(S.goalsRest||S.goals);
+    const val=metric==='k'?items.reduce((a,i)=>a+kcalOf(i),0):items.reduce((a,i)=>a+(i[metric]||0),0);
+    const goal=metric==='k'?kcalOf(g):g[metric];
+    return{d,y:goal?Math.round(val/goal*100):0};
+  });
+}
+// Aggregierte Kraftentwicklung: laufende Summe der besten 1RM-Schätzung je Main-Übung über die Zeit.
+// Ergibt eine Linie, die die Gesamtentwicklung über alle großen Übungen zeigt statt nur einer einzelnen.
+export function strengthTrend(days){
+  const mainNames=new Set();S.plans.forEach(p=>p.exercises.forEach(e=>{if(e.main)mainNames.add(e.name)}));S.workouts.forEach(w=>w.exercises.forEach(e=>{if(e.main)mainNames.add(e.name)}));
+  if(!mainNames.size)return[];
+  const cut=days?new Date(Date.now()-days*864e5).toISOString():null;
+  const chron=[...S.workouts].sort((a,b)=>a.date<b.date?-1:1);
+  const best={};const pts=[];
+  chron.forEach(w=>{let touched=false;
+    w.exercises.forEach(e=>{if(!mainNames.has(e.name))return;const r=bestRm(e);if(r>0){best[e.name]=Math.max(best[e.name]||0,r);touched=true}});
+    if(touched){const sum=Object.values(best).reduce((a,v)=>a+v,0);if(!cut||w.date>=cut)pts.push({d:w.date,y:Math.round(sum)})}
+  });
+  return pts;
+}
+// Fotos ~30 Tage auseinander paaren (neuestes zuerst), für den Monatsvergleich.
+export function monthlyPhotoPairs(photos){
+  const sorted=[...photos].sort((a,b)=>b.d<a.d?-1:1); // neueste zuerst
+  const used=new Set(),pairs=[];
+  sorted.forEach(p=>{
+    if(used.has(p.id))return;
+    const target=new Date(p.d+'T12:00');target.setDate(target.getDate()-30);
+    let best=null,bestDiff=Infinity;
+    photos.forEach(q=>{if(q.id===p.id||used.has(q.id)||q.d>=p.d)return;
+      const diff=Math.abs((new Date(q.d+'T12:00')-target)/864e5);
+      if(diff<=6&&diff<bestDiff){bestDiff=diff;best=q}});
+    if(best){pairs.push({newer:p,older:best,days:Math.round((new Date(p.d+'T12:00')-new Date(best.d+'T12:00'))/864e5)});used.add(p.id);used.add(best.id)}
+  });
+  return pairs;
+}
 export function nextRoundGoal(name,step=10){
   const b=allTimeBest(name);if(!b.bw)return null;
   let target=Math.ceil((b.bw+0.5)/step)*step;if(target<=b.bw)target+=step;
