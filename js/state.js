@@ -1,7 +1,7 @@
 import {kvGet,kvSet,mirror,readMirror} from './store.js';
 import {classify} from './muscles.js';
 // ===== Konstanten =====
-export const APP_VERSION='41';
+export const APP_VERSION='42';
 export const SCHEMA=3;
 export const KEY='perf.v1';
 export const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];
@@ -194,6 +194,16 @@ export function monthlyPhotoPairs(photos){
     if(best){pairs.push({newer:p,older:best,days:Math.round((new Date(p.d+'T12:00')-new Date(best.d+'T12:00'))/864e5)});used.add(p.id);used.add(best.id)}
   });
   return pairs;
+}
+// Körpermaße über Zeit, analog zum Gewicht. Arm/Bein: Mittelwert aus links/rechts, wenn beide vorliegen.
+export const MEASURE_METRICS=[['waist','Bauch'],['arm','Arm'],['thigh','Bein']];
+export function measureValue(x,metric){
+  if(metric==='waist')return x.waist;
+  if(metric==='arm'){const v=[x.armL,x.armR].filter(n=>n!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:x.arm}
+  if(metric==='thigh'){const v=[x.thighL,x.thighR].filter(n=>n!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:x.thigh}
+}
+export function measureTrend(metric){
+  return [...S.measures].sort((a,b)=>a.d<b.d?-1:1).map(x=>({d:x.d,y:measureValue(x,metric)})).filter(p=>p.y!=null);
 }
 export function nextRoundGoal(name,step=10){
   const b=allTimeBest(name);if(!b.bw)return null;

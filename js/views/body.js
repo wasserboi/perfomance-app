@@ -1,10 +1,10 @@
-import {S,save,today,fmtD,MEAS,trend,esc} from '../state.js';
+import {S,save,today,fmtD,MEAS,MEASURE_METRICS,measureTrend,trend,esc} from '../state.js';
 import {toast,rerender,el} from '../ui.js';
 import {lineChart} from '../charts.js';
 import {startTimer} from '../timer.js';
 import * as photos from '../photos.js';
 
-let range='3m';
+let range='3m',measureMetric='waist';
 const RANGES=[['3m','3M'],['1y','1J'],['all','Alles']];
 function inRange(ws){if(range==='all')return ws;const cut=new Date(Date.now()-(range==='3m'?90:365)*864e5).toISOString().slice(0,10);const f=ws.filter(x=>x.d>=cut);return f.length>1?f:ws.slice(-2)}
 function html(){
@@ -26,6 +26,7 @@ function html(){
     <button class="btn primary wide mt3" data-a="savem">Maße speichern</button>
     ${m.length?`<div class="list mt3">${m.slice(-5).reverse().map(x=>`<div class="item top"><span class="muted" style="min-width:52px">${fmtD(x.d)}</span><span class="num tiny right">${mrow(x)}</span></div>`).join('')}</div>`:'<div class="tiny mt2">Alle 2–4 Wochen messen reicht.</div>'}
   </div>
+  ${measureTrend(measureMetric).length>1?`<div class="card"><div class="row between mb2"><span>${MEASURE_METRICS.map(([k,l])=>`<button class="chip ${measureMetric===k?'on':''}" data-a="mmetric" data-v="${k}" style="margin:0 4px 0 0">${l}</button>`).join('')}</span></div><canvas id="cMeasure"></canvas></div>`:''}
   <h2>Fotos</h2>
   <div class="card"><div class="grid2"><label class="btn primary">Foto aufnehmen<input type="file" accept="image/*" capture="environment" id="phCam" hidden></label><label class="btn">Aus Galerie<input type="file" accept="image/*" id="phLib" hidden></label></div>
     <div class="pgrid" id="pgrid"></div><div class="tiny mt2">Alle 2–4 Wochen, gleiche Pose, gleiches Licht. Fotos liegen komprimiert auf dem Gerät und im Cloud-Backup.</div></div>
@@ -34,8 +35,11 @@ function html(){
   ${ws.length?`<h2>Einträge</h2><div class="card list">${ws.slice(-10).reverse().map(x=>`<div class="item"><span class="muted">${fmtD(x.d)}</span><span class="row"><span class="num">${x.w.toFixed(1)} kg</span><button class="btn ghost sm" data-a="rmw" data-d="${x.d}">✕</button></span></div>`).join('')}</div>`:''}`;
 }
 export default{html,
-  after(){const ws=inRange([...S.weights].sort((a,b)=>a.d<b.d?-1:1));lineChart(document.getElementById('c2'),trend(ws),ws.map(x=>({d:x.d,y:x.w})),' kg');photos.loadMeta().then(photos.renderGrid)},
+  after(){const ws=inRange([...S.weights].sort((a,b)=>a.d<b.d?-1:1));lineChart(document.getElementById('c2'),trend(ws),ws.map(x=>({d:x.d,y:x.w})),' kg');
+    const mc=document.getElementById('cMeasure');if(mc)lineChart(mc,measureTrend(measureMetric),null,' cm');
+    photos.loadMeta().then(photos.renderGrid)},
   action(a,d){
+    if(a==='mmetric'){measureMetric=d.v;rerender()}
     if(a==='savew'){const v=+el('wIn').value;if(!v)return;S.weights=S.weights.filter(x=>x.d!==today());S.weights.push({d:today(),w:v});save();toast('Gespeichert');rerender()}
     if(a==='rmw'){S.weights=S.weights.filter(x=>x.d!==d.d);save();rerender()}
     if(a==='savem'){const e={d:today()};MEAS.map(x=>x[0]).forEach(k=>{const v=+el('ms_'+k).value;if(v)e[k]=v});if(Object.keys(e).length<2)return;S.measures=S.measures.filter(x=>x.d!==today());S.measures.push(e);save();toast('Gespeichert');rerender()}

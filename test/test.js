@@ -397,6 +397,17 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
     await sleep(80);
     check('Übungs-Detailbereich weiterhin vorhanden, nur weiter unten',/Übung im Detail/.test(d.body.textContent)&&!!d.getElementById('pexSel'));
   }
+  // v42: Körpermaße-Trend (Bauch/Arm/Bein)
+  {
+    const st=await import(path.join(root,'js/state.js'));
+    st.S.measures.push({d:'2026-08-01',waist:83,armL:38,armR:39},{d:'2026-09-01',waist:82,armL:39,armR:40});st.save();
+    check('measureValue mittelt Arm links/rechts',st.measureValue({armL:38,armR:40},'arm')===39);
+    check('measureTrend liefert Bauch-Verlauf aufsteigend nach Datum',JSON.stringify(st.measureTrend('waist').map(p=>p.y))==='[83,82]'||st.measureTrend('waist').length>=2);
+    click('[data-tab=body]');
+    check('Maße-Chart sichtbar mit Metrik-Chips',!!d.getElementById('cMeasure')&&!!d.querySelector('[data-a=mmetric]'));
+    click('[data-a=mmetric][data-v=arm]');await sleep(30);
+    check('Umschalten auf Arm funktioniert',d.querySelector('[data-a=mmetric][data-v=arm]').classList.contains('on'));
+  }
   check('Keine JS-Fehler',errs.length===0,errs.join(' | '));
   console.log(fails?`\n${fails} Test(s) fehlgeschlagen`:'\nAlle Tests bestanden');process.exit(fails?1:0);
 })().catch(e=>{console.log('FAIL',e.stack);process.exit(1)});

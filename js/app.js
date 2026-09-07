@@ -25,6 +25,7 @@ el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
   try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
   location.reload()};
 export const CHANGES=[
+ {v:'42',t:['Körpermaße-Trend: Bauch/Arm/Bein als Linie über Zeit, analog zum Gewicht (Körper-Tab)']},
  {v:'41',t:['Fortschritt neu geordnet: Muskelgruppen jetzt eingeklappt, darüber Makro-Treue (7T/1M/6M), Kraftentwicklung über alle Main-Übungen (1M/6M/1J) und automatischer Fotovergleich mit dem Foto von vor ~30 Tagen']},
  {v:'40',t:['Nach dem Training: "Als neue Vorlage übernehmen" – ersetzt die Übungsliste des Plans direkt durch das, was tatsächlich gemacht wurde (Reihenfolge, Sätze, Ziel-Reps). Die Main-Übung bleibt unangetastet']},
  {v:'39',t:['3-5-7 korrigiert: Schaffst du direkt eine spätere Stufe (z. B. 5×7), zählt das auch für die davorliegenden – kein umständliches Einzelabhaken mehr nötig']},
