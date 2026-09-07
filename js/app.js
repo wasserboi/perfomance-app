@@ -25,6 +25,7 @@ el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
   try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
   location.reload()};
 export const CHANGES=[
+ {v:'39',t:['3-5-7 korrigiert: Schaffst du direkt eine spätere Stufe (z. B. 5×7), zählt das auch für die davorliegenden – kein umständliches Einzelabhaken mehr nötig']},
  {v:'38',t:['Stangengewicht separat vom eingetragenen Zusatzgewicht: unter Übungen verwalten hinterlegbar, Sammel-Button für alle "(Barbell)"-Übungen. Zählt jetzt korrekt mit bei bewegten Tonnen, geschätztem 1RM, Kraftstandard und PR-Wand – Eingabefeld bleibt unverändert']},
  {v:'37',t:['Fehler behoben: Makros zeigte nach Mitternacht noch den Vortag, wenn die App durchgehend offen blieb – Datum wird jetzt immer frisch berechnet und aktualisiert sich automatisch um 00:00']},
  {v:'36',t:['Körper-Heatmap: Muskelgruppen-Volumen der Woche als Körperdiagramm (vorne/hinten)','PR-Wand: Chronik aller Bestleistungen','Foto-Vergleich mit Schieberegler','Grobe Kraftstandard-Einordnung bei Bankdrücken/Kniebeuge/Kreuzheben/Schulterdrücken','Wochenrückblick als teilbares Bild','Konfetti bei einem PR','Nächstes rundes Trainingsziel je Übung']},

@@ -1,7 +1,7 @@
 import {kvGet,kvSet,mirror,readMirror} from './store.js';
 import {classify} from './muscles.js';
 // ===== Konstanten =====
-export const APP_VERSION='38';
+export const APP_VERSION='39';
 export const SCHEMA=3;
 export const KEY='perf.v1';
 export const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];
@@ -197,14 +197,19 @@ export function finishWorkout(){
   const a=S.active;const exercises=a.exercises.map(e=>({name:e.name,type:e.type,main:e.main,stage:e.stage,targetReps:e.targetReps,sets:e.sets.filter(s=>s.done)})).filter(e=>e.sets.some(s=>!s.wu));
   if(!exercises.length)return null;
   let mainRes=null;const p=S.plans.find(x=>x.id===a.planId),me=exercises.find(e=>e.main),pe=p&&me&&p.exercises.find(x=>x.name===me.name&&x.main);
-  if(pe){const st=pe.state||{weight:pe.weight,stage:0},cfg=STAGES[st.stage],ws=me.sets.filter(x=>!x.wu);
-    const ok=ws.length>=cfg.sets&&ws.slice(0,cfg.sets).every(x=>x.r>=cfg.reps&&x.w>=st.weight);
+  if(pe){const st=pe.state||{weight:pe.weight,stage:0},ws=me.sets.filter(x=>!x.wu);
+    const clears=s=>{const c=STAGES[s];return ws.length>=c.sets&&ws.slice(0,c.sets).every(x=>x.r>=c.reps&&x.w>=st.weight)};
+    // Ab der aktuellen Stufe prüfen, wie weit du gekommen bist – schaffst du direkt eine spätere
+    // (z. B. 5×7, obwohl offiziell 10×3 dran war), zählt das auch für die davorliegenden Stufen.
+    // Rückwärts (eine schon übersprungene, leichtere Stufe) zählt nicht, sonst gäbe es Rückschritte.
+    let reached=-1;for(let s=st.stage;s<STAGES.length;s++)if(clears(s))reached=s;
+    const ok=reached>=0,cfg=STAGES[st.stage];
     let next,deload=false;
-    if(ok)next={weight:st.weight,stage:st.stage<2?st.stage+1:0,fails:0};
+    if(ok)next={weight:st.weight,stage:reached<2?reached+1:0,fails:0};
     else if((st.fails||0)+1>=2){deload=true;next={weight:Math.max(20,st.weight-Math.max(5,(pe.step||10)/2)),stage:0,fails:0}}
     else next={weight:st.weight,stage:st.stage,fails:(st.fails||0)+1};
-    if(ok&&st.stage===2)next.weight=st.weight+(pe.step||10);
-    mainRes={name:me.name,ok,deload,from:st,to:next,done:ws.filter(x=>x.r>=cfg.reps&&x.w>=st.weight).length,need:cfg.sets};pe.state=next;}
+    if(ok&&reached===2)next.weight=st.weight+(pe.step||10);
+    mainRes={name:me.name,ok,deload,from:st,reached,to:next,done:ws.filter(x=>x.r>=cfg.reps&&x.w>=st.weight).length,need:cfg.sets};pe.state=next;}
   const w={id:a.id,name:a.name,planId:a.planId,date:new Date().toISOString(),duration:(Date.now()-a.start)/1000,exercises,mainRes};
   S.workouts.push(w);S.active=null;touchWorkouts();rebuildBests(w);save();return w;
 }

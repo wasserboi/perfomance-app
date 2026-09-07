@@ -313,6 +313,28 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
     check('Makros aktualisiert sich automatisch nach Mitternacht',/^Heute/.test(after)&&!store().water[new realDate(realDate.now()).toISOString().slice(0,10)],'after='+after);
     global.Date=w.Date=realDate;
   }
+  // v39: 3-5-7 – direkt eine spätere Stufe schaffen zählt auch für die davor liegenden
+  {
+    click('[data-tab=plans]');click('[data-a=edit]');click('[data-x=add]');
+    inp(d.getElementById('pn'),'Push Test');inp(d.querySelector('[data-pf=name]'),'OHP');click('[data-x=main]');inp(d.querySelector('[data-pf=weight]'),20);click('[data-x=save]');
+    const pid=[...d.querySelectorAll('[data-a=start]')].find(b=>b.textContent.includes('OHP')===false&&b.parentElement.textContent.includes('Push Test'))?.dataset.id
+      ||[...document.querySelectorAll('.planbtn')].find(b=>b.textContent.includes('Push Test'))?.dataset.id;
+    click('[data-tab=log]');
+    const startBtn=[...d.querySelectorAll('[data-a=start][data-id]')].find(b=>b.textContent.includes('Push Test'));
+    startBtn.dispatchEvent(new w.MouseEvent('click',{bubbles:true}));
+    check('Startet bei Stufe 10×3',d.querySelector('.stagebar .on').textContent==='10×3');
+    // Nur 5 Sätze abhaken, aber mit 7 Reps statt der geforderten 3 -> soll als 5×7 durchgehen
+    for(let i=0;i<5;i++){inp(d.querySelectorAll('input[data-f=r]')[i],7);d.querySelectorAll('[data-a=done]')[i].dispatchEvent(new w.MouseEvent('click',{bubbles:true}))}
+    click('[data-a=finish]');
+    const txt=d.querySelector('#sheet').textContent;
+    check('Wird als "übersprungen" erkannt, nicht als gescheitert',/übersprungen/.test(txt)||/Stufe geschafft/.test(txt),txt.slice(0,200));
+    check('Kein "Nicht geschafft"',!/Nicht geschafft/.test(txt));
+    const st=await import(path.join(root,'js/state.js'));
+    const plan=st.S.plans.find(p=>p.name==='Push Test');
+    check('Gewicht direkt erhöht (10 kg Schritt)',plan.exercises[0].state.weight===30,'weight='+plan.exercises[0].state.weight);
+    check('Stufe zurück auf 10×3 (neues Ausgangsgewicht)',plan.exercises[0].state.stage===0);
+    click('[data-x=close]');
+  }
   check('Keine JS-Fehler',errs.length===0,errs.join(' | '));
   console.log(fails?`\n${fails} Test(s) fehlgeschlagen`:'\nAlle Tests bestanden');process.exit(fails?1:0);
 })().catch(e=>{console.log('FAIL',e.stack);process.exit(1)});
