@@ -335,6 +335,36 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
     check('Stufe zurück auf 10×3 (neues Ausgangsgewicht)',plan.exercises[0].state.stage===0);
     click('[data-x=close]');
   }
+  // v40: Abgeschlossenes Training als neue feste Vorlage übernehmen
+  {
+    const st=await import(path.join(root,'js/state.js'));
+    click('[data-tab=plans]');click('[data-a=edit]:not([data-id])');click('[data-x=add]');click('[data-x=add]');
+    inp(d.getElementById('pn'),'Tmpl Test');
+    inp(d.querySelectorAll('[data-pf=name]')[0],'TmplBank');click('[data-x=main]');inp(d.querySelector('[data-pf=weight]'),50);
+    inp(d.querySelectorAll('[data-pf=name]')[1],'TmplFlys');
+    click('[data-x=save]');
+    const before=st.S.plans.find(p=>p.name==='Tmpl Test');
+    check('Plan vorher: 2 Übungen (Bank, Flys)',before.exercises.map(e=>e.name).join(',')==='TmplBank,TmplFlys');
+    click('[data-tab=log]');[...d.querySelectorAll('[data-a=start][data-id]')].find(b=>b.textContent.includes('Tmpl Test')).dispatchEvent(new w.MouseEvent('click',{bubbles:true}));
+    // Flys entfernen, eine neue Übung dazu, Main normal abhaken, neue Übung mit 4 Sätzen à 12 Reps
+    click('[data-a=menu][data-i="1"]');click('[data-x=rm]');
+    click('[data-a=addex]');inp(d.getElementById('pv'),'TmplNeu');click('[data-x=ok]');
+    for(let i=0;i<10;i++)d.querySelectorAll('[data-a=done]')[i].dispatchEvent(new w.MouseEvent('click',{bubbles:true}));
+    const newExCard=()=>[...d.querySelectorAll('.ex')].find(c=>c.textContent.includes('TmplNeu'));
+    // auf 4 Sätze bringen (Übung startet mit 1)
+    while(newExCard().querySelectorAll('[data-a=done]').length<4)newExCard().querySelector('[data-a=addset]').dispatchEvent(new w.MouseEvent('click',{bubbles:true}));
+    // alle 4 Sätze mit 12 Reps eintragen und abhaken
+    for(let i=0;i<4;i++){const card=newExCard();inp(card.querySelectorAll('input[data-f=r]')[i],12);inp(card.querySelectorAll('input[data-f=w]')[i],40);
+      newExCard().querySelectorAll('[data-a=done]')[i].dispatchEvent(new w.MouseEvent('click',{bubbles:true}))}
+    click('[data-a=finish]');
+    check('Vorlagen-Button erscheint',!!d.querySelector('[data-x=tmpl]'));
+    click('[data-x=tmpl]');
+    const after=st.S.plans.find(p=>p.name==='Tmpl Test');
+    check('Plan nachher: Flys entfernt, TmplNeu übernommen',after.exercises.map(e=>e.name).join(',')==='TmplBank,TmplNeu',after.exercises.map(e=>e.name).join(','));
+    check('Main-Übung (Gewicht/Stufe) unangetastet',after.exercises[0].main&&after.exercises[0].state.weight===before.exercises[0].state.weight);
+    check('Neue Übung mit 4 Sätzen à 12 Reps übernommen',after.exercises[1].sets===4&&after.exercises[1].reps===12,JSON.stringify(after.exercises[1]));
+    click('[data-x=close]');
+  }
   check('Keine JS-Fehler',errs.length===0,errs.join(' | '));
   console.log(fails?`\n${fails} Test(s) fehlgeschlagen`:'\nAlle Tests bestanden');process.exit(fails?1:0);
 })().catch(e=>{console.log('FAIL',e.stack);process.exit(1)});

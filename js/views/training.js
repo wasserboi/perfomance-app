@@ -1,4 +1,4 @@
-import {S,save,STAGES,stageLabel,esc,fmtD,fmtDL,de,vol,totalKg,planWorkouts,lastSets,compare,prsFor,allTimeBest,barOf,e1rm,pctS,pctC,startWorkout,finishWorkout,today,touchWorkouts,rebuildBestsFull} from '../state.js';
+import {S,save,STAGES,stageLabel,esc,fmtD,fmtDL,de,vol,totalKg,planWorkouts,lastSets,compare,prsFor,allTimeBest,barOf,e1rm,pctS,pctC,startWorkout,finishWorkout,saveAsTemplate,today,touchWorkouts,rebuildBestsFull} from '../state.js';
 import {sheet,closeSheet,toast,prompt2,confirm2,rerender,render,svgCheck} from '../ui.js';
 import {moveItem} from './plans.js';
 import {burst} from '../confetti.js';
@@ -79,13 +79,16 @@ export function summarySheet(id){
   const prev=idx>0?hist[idx-1]:null,first=idx>0?hist[0]:null,cl=compare(w,prev),cf=idx>1?compare(w,first):null,prs=prsFor(w),mr=w.mainRes;
   const box=(l,c)=>c?`<div class="card sub"><div class="tiny">${l} · ${fmtD(c.date)}</div><div class="big num ${pctC(c.pct)}" style="font-size:30px">${pctS(c.pct)}</div><div class="tiny">Volumen ${pctS(c.vol)}</div></div>`:'';
   const mainBox=mr?`<div class="card sub ${mr.ok?'good':'warn'}"><div class="tiny">Main · ${esc(mr.name)} · 3-5-7</div><div style="font-weight:600;margin-top:2px">${mr.ok?(mr.reached>mr.from.stage?`Direkt ${stageLabel(mr.reached)} geschafft – übersprungen`:'Stufe geschafft'):'Nicht geschafft'}${mr.ok?'':' – '+mr.done+'/'+mr.need+' Sätze mit '+STAGES[mr.from.stage].reps+' Reps @ '+mr.from.weight+' kg'}</div><div class="muted" style="margin-top:2px">Nächstes Mal: ${stageLabel(mr.to.stage)} mit ${mr.to.weight} kg${mr.deload?' – Deload nach zwei Fehlversuchen':mr.ok&&mr.to.stage===0?' – neues Ausgangsgewicht':mr.ok?'':' – wiederholen (zweiter Fehlversuch → Deload)'}</div></div>`:'';
+  const plan=w.planId&&S.plans.find(p=>p.id===w.planId);
   sheet(`<h3>${esc(w.name)}</h3>
   <div class="tiny mb3">${fmtDL(w.date)} · ${Math.round(w.duration/60)} min · ${de(vol(w))} kg bewegt${prs.n?` · <span class="warn" style="font-weight:600">${prs.n} PR${prs.n>1?'s':''}</span>`:''}</div>
   ${mainBox}
   ${cl||cf?`<div class="grid2">${box('vs. letztes Mal',cl)}${box('seit Aufzeichnung',cf)}</div><div class="tiny mb3 mt1">Kraft-Score = Summe der geschätzten 1RM aller Übungen, die in beiden Trainings vorkamen.</div>`:'<div class="muted mb3">Erstes Training mit diesem Plan – ab dem nächsten Mal siehst du hier den Vergleich.</div>'}
   <div class="card sub list">${w.exercises.map(x=>{const d=cl?.per.find(p=>p.name===x.name);return`<div class="item"><div class="grow"><div style="font-weight:600">${x.main?'<span class="tag main">Main</span>':''}${x.type?`<span class="tag">${x.type[0]}</span>`:''}${esc(x.name)}${(prs.per[x.name]||[]).map(p=>`<span class="pr">PR ${p}</span>`).join('')}</div><div class="tiny num">${x.sets.map(s=>(s.wu?'W ':'')+s.w+'×'+s.r).join(' · ')}</div></div>${d?`<span class="num ${pctC(d.pct)}" style="font-weight:600">${pctS(d.pct)}</span>`:'<span class="tiny">neu</span>'}</div>`}).join('')}</div>
+  ${plan?`<button class="btn ghost wide mt2" data-x="tmpl">Als neue Vorlage für "${esc(plan.name)}" übernehmen</button>`:''}
   <button class="btn primary wide mt2" data-x="close">Fertig</button><button class="btn ghost danger wide mt2" data-x="del">Training löschen</button>`,
-  {close:closeSheet,del:()=>{if(!confirm2('Löschen?'))return;S.workouts=S.workouts.filter(x=>x.id!==id);touchWorkouts();rebuildBestsFull();save();closeSheet();rerender()}});
+  {close:closeSheet,del:()=>{if(!confirm2('Löschen?'))return;S.workouts=S.workouts.filter(x=>x.id!==id);touchWorkouts();rebuildBestsFull();save();closeSheet();rerender()},
+   tmpl:()=>{if(!confirm2(`Übungen aus diesem Training als neue Vorlage für "${plan.name}" übernehmen? Die bisherige Übungsliste des Plans wird ersetzt.`))return;saveAsTemplate(id);toast('Vorlage aktualisiert');closeSheet();rerender()}});
 }
 
 export default{

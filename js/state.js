@@ -1,7 +1,7 @@
 import {kvGet,kvSet,mirror,readMirror} from './store.js';
 import {classify} from './muscles.js';
 // ===== Konstanten =====
-export const APP_VERSION='39';
+export const APP_VERSION='40';
 export const SCHEMA=3;
 export const KEY='perf.v1';
 export const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];
@@ -212,6 +212,20 @@ export function finishWorkout(){
     mainRes={name:me.name,ok,deload,from:st,reached,to:next,done:ws.filter(x=>x.r>=cfg.reps&&x.w>=st.weight).length,need:cfg.sets};pe.state=next;}
   const w={id:a.id,name:a.name,planId:a.planId,date:new Date().toISOString(),duration:(Date.now()-a.start)/1000,exercises,mainRes};
   S.workouts.push(w);S.active=null;touchWorkouts();rebuildBests(w);save();return w;
+}
+// Ein abgeschlossenes Training als neue feste Vorlage für seinen Plan übernehmen – ersetzt die
+// bisherige Übungsliste 1:1 durch das, was tatsächlich gemacht wurde (Reihenfolge, Sätze, Ziel-Reps).
+// Die Main-Übung (Gewicht/Stufe im 3-5-7-System) bleibt unangetastet, die wird bereits separat gepflegt.
+export function saveAsTemplate(workoutId){
+  const w=S.workouts.find(x=>x.id===workoutId);if(!w||!w.planId)return false;
+  const p=S.plans.find(x=>x.id===w.planId);if(!p)return false;
+  p.exercises=w.exercises.map(e=>{
+    const existing=p.exercises.find(pe=>pe.name===e.name);
+    if(e.main)return existing||{name:e.name,type:e.type||'Freihand',main:true,weight:allTimeBest(e.name).bw||20,step:10,state:{weight:allTimeBest(e.name).bw||20,stage:0,fails:0}};
+    const ws=e.sets.filter(s=>!s.wu);
+    return{name:e.name,type:(existing&&existing.type)||e.type||'Freihand',sets:ws.length||3,reps:ws.length?Math.max(...ws.map(s=>s.r)):(existing?.reps||10)};
+  });
+  save();return true;
 }
 
 // ===== Ernährung =====
