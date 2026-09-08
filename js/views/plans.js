@@ -1,5 +1,5 @@
 import {S,save,clone,uid,esc,TYPES,stageLabel,APP_VERSION,today,e1rm,renameExercise,replaceState,setBarWeight,setBarWeightBulk} from '../state.js';
-import {dbSearchSheet} from '../exercisedb-ui.js';
+import {browseSheet} from '../exercisedb-ui.js';
 import {sheet,closeSheet,toast,confirm2,rerender,dl,csv,el} from '../ui.js';
 import {SY,syncText,connect,pushSync,pullSync,listSnapshots,restoreSnapshot,lastSafetyBackup,safetyBackup} from '../sync.js';
 import {checkUpdate,changelogSheet} from '../app.js';
@@ -75,7 +75,7 @@ export function settingsSheet(){
           try{await restoreSnapshot(b.dataset.sha);toast('Wiederhergestellt');closeSheet();rerender()}catch(e){toast('Fehlgeschlagen: '+e.message)}}});
     }catch(e){toast('Historie nicht abrufbar')}},restore:()=>{if(confirm2('Lokale Daten durch das Cloud-Backup ersetzen?'))pullSync(true).then(()=>{settingsSheet();rerender()})},
     exmgr:()=>exMgrSheet(),
-    exdb:()=>dbSearchSheet(),
+    exdb:()=>browseSheet(),
     export:()=>dl('performance-backup-'+today()+'.json',JSON.stringify(S),'application/json'),
     import:()=>{const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=()=>{const r=new FileReader();r.onload=async()=>{try{const d=JSON.parse(r.result);await safetyBackup();replaceState(d);save();toast('Backup geladen');closeSheet();rerender()}catch(e){toast('Ungültige Datei')}};r.readAsText(i.files[0])};i.click()},
     csvw:()=>{const rows=[['Datum','Plan','Übung','Satz','Aufwärmen','kg (Eintrag)','Stange (kg)','Reps','e1RM (inkl. Stange)']];S.workouts.forEach(w=>w.exercises.forEach(e=>{const bar=S.barbell[e.name]||0;e.sets.forEach((st,i)=>rows.push([w.date.slice(0,10),w.name,e.name,i+1,st.wu?'ja':'',st.w,bar||'',st.r,st.wu?'':Math.round(e1rm(st.w+bar,st.r))]))}));dl('training-'+today()+'.csv',csv(rows),'text/csv')},

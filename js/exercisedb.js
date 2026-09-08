@@ -35,3 +35,15 @@ export async function autoMatch(name){
     if(s>bestScore){bestScore=s;best=ex}});
   return bestScore>=4?best:null;
 }
+
+// Nach Körperteil durchsuchen, für den Bild-Browser.
+const BODY_PART_DE={chest:'Brust',back:'Rücken',shoulders:'Schultern',upper_arms:'Oberarme',lower_arms:'Unterarme',
+  upper_legs:'Oberschenkel',lower_legs:'Unterschenkel',core:'Bauch',full_body:'Ganzkörper',waist:'Bauch',neck:'Nacken'};
+export async function bodyParts(){
+  const db=await loadDB();const counts={};
+  db.forEach(ex=>{const k=ex.body_part||'sonstige';counts[k]=(counts[k]||0)+1});
+  return Object.entries(counts).map(([key,count])=>({key,label:BODY_PART_DE[key]||key.replace(/_/g,' '),count})).sort((a,b)=>b.count-a.count);
+}
+export async function byBodyPart(part){
+  const db=await loadDB();return db.filter(ex=>(ex.body_part||'sonstige')===part).sort((a,b)=>a.name_de.localeCompare(b.name_de,'de'));
+}

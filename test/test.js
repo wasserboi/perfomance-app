@@ -438,13 +438,31 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
     check('Anleitung öffnet automatisch die passende Übung',/Bankdrücken/.test(d.querySelector('#sheet h3').textContent)&&/Ausführung/.test(d.body.textContent));
     check('Quellenangabe sichtbar',/RepDB/.test(d.body.textContent));
     click('[data-x=close]');click('[data-a=cancel]');
-    // Durchsuchbarer Einstieg in den Einstellungen
-    click('[data-tab=plans]');click('[data-a=settings]');click('[data-x=exdb]');
+    // Körperteil-Browser in den Einstellungen: Region -> Liste mit Bild -> Anleitung
+    click('[data-tab=plans]');click('[data-a=settings]');click('[data-x=exdb]');await sleep(30);
+    check('Körperteil-Liste erscheint',!!d.querySelector('[data-x=part][data-p=chest]'),d.querySelector('#sheet').textContent.slice(0,150));
+    click('[data-x=part][data-p=chest]');await sleep(60);
+    check('Übungsliste mit Bildvorschau',!!d.querySelector('#sheet .food img'));
+    click('#sheet .food');await sleep(30);
+    check('Anleitung öffnet aus der Liste heraus',!!d.querySelector('#sheet img')&&/Ausführung/.test(d.body.textContent));
+    click('[data-x=back]');await sleep(30);
+    check('Zurück führt zur Übungsliste',!!d.querySelector('[data-x=pick]'));
+    click('[data-x=back]');await sleep(30);
+    check('Zurück führt zur Körperteil-Übersicht',!!d.querySelector('[data-x=part]'));
+    // Direktsuche weiterhin erreichbar
+    click('[data-x=search]');await sleep(30);
     const q=d.getElementById('edq');q.value='Kniebeuge';q.dispatchEvent(new w.Event('input',{bubbles:true}));await sleep(60);
-    check('Übungsdatenbank-Suche in den Einstellungen',!!d.querySelector('#edr .food'),d.getElementById('edr').textContent);
-    click('#edr .food');await sleep(30);
-    check('Ergebnis öffnet Detailansicht mit Bildern',!!d.querySelector('#sheet img'));
-    click('[data-x=close]');click('[data-x=close]');
+    check('Namenssuche funktioniert weiterhin',!!d.querySelector('#edr .food'));
+    click('[data-x=close]');
+    // Übung im Training aus der Datenbank übernehmen (Pick-Modus)
+    click('[data-tab=log]');click('[data-a=start][data-id]');
+    const before=store().active.exercises.length;
+    click('[data-a=adddb]');await sleep(30);click('[data-x=part][data-p=chest]');await sleep(60);
+    click('#sheet .food');await sleep(30);
+    check('Übernehmen-Button in der Anleitung (Pick-Modus)',!!d.querySelector('[data-x=pick]'));
+    click('[data-x=pick]');await sleep(30);
+    check('Übung wird ins laufende Training übernommen',store().active.exercises.length===before+1,'vorher='+before+' nachher='+store().active.exercises.length);
+    click('[data-a=cancel]');
   }
   check('Keine JS-Fehler',errs.length===0,errs.join(' | '));
   console.log(fails?`\n${fails} Test(s) fehlgeschlagen`:'\nAlle Tests bestanden');process.exit(fails?1:0);

@@ -4,6 +4,7 @@ import {moveItem} from './plans.js';
 import {burst} from '../confetti.js';
 import {shareWeekImage} from '../share.js';
 import {openGuide} from '../exercisedb-ui.js';
+import {browseSheet} from '../exercisedb-ui.js';
 import {startTimer,stopTimer} from '../timer.js';
 
 let histN=8;
@@ -56,7 +57,7 @@ function active(){
       <button class="addset" data-a="addset" data-i="${ei}">+ Satz</button>
     </div>
   </div>`}).join('')}
-  <div class="grid2 mt3"><button class="btn" data-a="addex">+ Übung</button><button class="btn primary" data-a="finish">Beenden</button></div>`;
+  <div class="grid3 mt3"><button class="btn" data-a="addex">+ Übung</button><button class="btn" data-a="adddb">Aus Datenbank</button><button class="btn primary" data-a="finish">Beenden</button></div>`;
 }
 function exMenu(ei){
   const ex=S.active.exercises[ei],n=S.active.exercises.length;
@@ -114,6 +115,7 @@ export default{
     if(a==='wu'){const s=A.exercises[d.i].sets[d.s];s.wu=!s.wu;save();rerender()}
     if(a==='addset'){const ss=A.exercises[d.i].sets,l=ss[ss.length-1];ss.push({w:l?l.w:0,r:l?l.r:0,done:false});save();rerender()}
     if(a==='addex')prompt2('Übung',n=>{if(!n)return;A.exercises.push({name:n,sets:[0,1,2].map(()=>({w:0,r:0,done:false}))});save();rerender()},'z. B. Bankdrücken');
+    if(a==='adddb')browseSheet(name=>{A.exercises.push({name,sets:[0,1,2].map(()=>({w:0,r:0,done:false}))});save();rerender();toast(name+' hinzugefügt')});
   },
   input(t){if(t.dataset.f&&S.active){S.active.exercises[t.dataset.i].sets[t.dataset.s][t.dataset.f]=+t.value||0;save()}}
 };

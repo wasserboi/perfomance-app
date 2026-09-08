@@ -25,6 +25,7 @@ el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
   try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
   location.reload()};
 export const CHANGES=[
+ {v:'44',t:['Übungsdatenbank: nach Körperteil durchsuchen mit Bildvorschau in der Liste; im Training direkt eine Übung aus der Datenbank hinzufügen']},
  {v:'43',t:['Übungsdatenbank eingebaut (RepDB, deutsch): Illustrationen und Schritt-für-Schritt-Anleitung, über "Anleitung ansehen" im Training-Menü (ordnet automatisch zu) oder durchsuchbar im Zahnrad']},
  {v:'42',t:['Körpermaße-Trend: Bauch/Arm/Bein als Linie über Zeit, analog zum Gewicht (Körper-Tab)']},
  {v:'41',t:['Fortschritt neu geordnet: Muskelgruppen jetzt eingeklappt, darüber Makro-Treue (7T/1M/6M), Kraftentwicklung über alle Main-Übungen (1M/6M/1J) und automatischer Fotovergleich mit dem Foto von vor ~30 Tagen']},
