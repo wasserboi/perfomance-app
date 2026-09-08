@@ -3,6 +3,7 @@ import {sheet,closeSheet,toast,prompt2,confirm2,rerender,render,svgCheck} from '
 import {moveItem} from './plans.js';
 import {burst} from '../confetti.js';
 import {shareWeekImage} from '../share.js';
+import {openGuide} from '../exercisedb-ui.js';
 import {startTimer,stopTimer} from '../timer.js';
 
 let histN=8;
@@ -64,6 +65,7 @@ function exMenu(ei){
     <button class="btn wide mt2" data-x="wu">Aufwärmsatz hinzufügen</button>
     <button class="btn wide mt2" data-x="rmset" ${ex.sets.length<2?'disabled':''}>Letzten Satz entfernen</button>
     <button class="btn wide mt2" data-x="note">Notiz ${S.exNotes[ex.name]?'bearbeiten':'hinzufügen'}</button>
+    <button class="btn wide mt2" data-x="guide">Anleitung ansehen</button>
     <button class="btn ghost danger wide mt2" data-x="rm">Übung entfernen</button>
     <button class="btn wide mt3" data-x="close">Schließen</button>`,{
     close:closeSheet,
@@ -72,6 +74,7 @@ function exMenu(ei){
     wu:()=>{ex.sets.unshift({w:0,r:0,done:false,wu:true});save();closeSheet();rerender()},
     rmset:()=>{ex.sets.pop();save();closeSheet();rerender()},
     rm:()=>{if(!confirm2('Übung entfernen?'))return;S.active.exercises.splice(ei,1);save();closeSheet();rerender()},
+    guide:()=>openGuide(ex.name),
     note:()=>{const nm=ex.name;closeSheet();prompt2(nm,v=>{if(v)S.exNotes[nm]=v;else delete S.exNotes[nm];save();rerender()},'z. B. Sitz 4, enger Griff',S.exNotes[nm]||'')}});
 }
 export function summarySheet(id){

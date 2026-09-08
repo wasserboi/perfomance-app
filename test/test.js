@@ -8,7 +8,18 @@ const w=dom.window;
 // --- Mock: Git Data API + Open Food Facts + version.json ---
 let repo={ref:null,commits:{},trees:{},blobs:{}};const sha=()=>crypto.randomBytes(20).toString('hex');let blobPosts=0;
 const off={status:1,product:{code:'1',product_name_de:'Skyr',brands:'Arla',quantity:'450 g',nutriments:{proteins_100g:11,carbohydrates_100g:4,fat_100g:0.2,'energy-kcal_100g':63}}};
+const repdbFixture={count:2,exercises:[
+  {id:'bench-press',name_en:'Bench Press',name_de:'Bankdrücken',body_part:'chest',equipment:'barbell',difficulty:'intermediate',
+   primary_muscles:['pectoralis_major'],secondary_muscles:['triceps_brachii'],
+   instructions_de:['Lege dich auf die Bank.','Senke die Stange zur Brust.','Drücke die Stange nach oben.'],
+   tips_de:['Schulterblätter zusammenziehen.'],images:{flat:{start:'images/flat/bench-press-start.webp',peak:'images/flat/bench-press-peak.webp'}}},
+  {id:'squat',name_en:'Squat',name_de:'Kniebeuge',body_part:'legs',equipment:'barbell',difficulty:'intermediate',
+   primary_muscles:['quadriceps'],secondary_muscles:['gluteus_maximus'],
+   instructions_de:['Stelle dich hüftbreit hin.','Beuge die Knie ab.','Drücke dich hoch.'],
+   tips_de:['Rücken gerade halten.'],images:{flat:{start:'images/flat/squat-start.webp',peak:'images/flat/squat-peak.webp'}}},
+]};
 w.fetch=async(url,o={})=>{const ok=j=>({ok:true,status:200,json:async()=>j});
+  if(url.includes('exercise-dataset.com'))return ok(repdbFixture);
   if(url.includes('version.json'))return ok({version:'13'});
   if(url.includes('openfoodfacts'))return url.includes('api/v2')?ok(off):ok({products:[off.product]});
   const p=url.replace(/^.*\/repos\/[^/]+\/[^/]+/,'');const body=o.body?JSON.parse(o.body):null;
@@ -407,6 +418,33 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
     check('Maße-Chart sichtbar mit Metrik-Chips',!!d.getElementById('cMeasure')&&!!d.querySelector('[data-a=mmetric]'));
     click('[data-a=mmetric][data-v=arm]');await sleep(30);
     check('Umschalten auf Arm funktioniert',d.querySelector('[data-a=mmetric][data-v=arm]').classList.contains('on'));
+  }
+  // v43: Übungsdatenbank (RepDB) – Suche, Auto-Zuordnung, Anleitung im Training-Menü
+  {
+    const edb=await import(path.join(root,'js/exercisedb.js'));
+    const hits=await edb.search('Bankdrücken');
+    check('Suche findet Bankdrücken',hits.length===1&&hits[0].id==='bench-press');
+    const auto=await edb.autoMatch('Bankdrücken');
+    check('Auto-Zuordnung nach Name funktioniert',auto&&auto.id==='bench-press');
+    const noMatch=await edb.autoMatch('Irgendwas Erfundenes Xyz');
+    check('Keine Zuordnung bei unbekanntem Namen',noMatch===null);
+    // Anleitung direkt aus dem Training-Menü öffnen – eigener, eindeutiger Plan für diesen Test
+    click('[data-tab=plans]');click('[data-a=edit]:not([data-id])');click('[data-x=add]');
+    inp(d.getElementById('pn'),'Guide Test');inp(d.querySelector('[data-pf=name]'),'Bankdrücken');click('[data-x=save]');
+    click('[data-tab=log]');[...d.querySelectorAll('[data-a=start][data-id]')].find(b=>b.textContent.includes('Guide Test')).dispatchEvent(new w.MouseEvent('click',{bubbles:true}));
+    click('[data-a=menu][data-i="0"]');
+    check('"Anleitung ansehen" im Übungsmenü',!!d.querySelector('[data-x=guide]'));
+    click('[data-x=guide]');await sleep(60);
+    check('Anleitung öffnet automatisch die passende Übung',/Bankdrücken/.test(d.querySelector('#sheet h3').textContent)&&/Ausführung/.test(d.body.textContent));
+    check('Quellenangabe sichtbar',/RepDB/.test(d.body.textContent));
+    click('[data-x=close]');click('[data-a=cancel]');
+    // Durchsuchbarer Einstieg in den Einstellungen
+    click('[data-tab=plans]');click('[data-a=settings]');click('[data-x=exdb]');
+    const q=d.getElementById('edq');q.value='Kniebeuge';q.dispatchEvent(new w.Event('input',{bubbles:true}));await sleep(60);
+    check('Übungsdatenbank-Suche in den Einstellungen',!!d.querySelector('#edr .food'),d.getElementById('edr').textContent);
+    click('#edr .food');await sleep(30);
+    check('Ergebnis öffnet Detailansicht mit Bildern',!!d.querySelector('#sheet img'));
+    click('[data-x=close]');click('[data-x=close]');
   }
   check('Keine JS-Fehler',errs.length===0,errs.join(' | '));
   console.log(fails?`\n${fails} Test(s) fehlgeschlagen`:'\nAlle Tests bestanden');process.exit(fails?1:0);

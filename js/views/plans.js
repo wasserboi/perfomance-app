@@ -1,4 +1,5 @@
 import {S,save,clone,uid,esc,TYPES,stageLabel,APP_VERSION,today,e1rm,renameExercise,replaceState,setBarWeight,setBarWeightBulk} from '../state.js';
+import {dbSearchSheet} from '../exercisedb-ui.js';
 import {sheet,closeSheet,toast,confirm2,rerender,dl,csv,el} from '../ui.js';
 import {SY,syncText,connect,pushSync,pullSync,listSnapshots,restoreSnapshot,lastSafetyBackup,safetyBackup} from '../sync.js';
 import {checkUpdate,changelogSheet} from '../app.js';
@@ -53,6 +54,7 @@ export function settingsSheet(){
     <div class="tiny mt2">Sichert nach jeder Änderung automatisch ins Repo (Daten, Historie, Fotos). Der Token bleibt nur auf diesem Gerät.</div></div>
   <div class="muted mt4 mb2">Übungen</div>
   <div class="card sub"><button class="btn wide" data-x="exmgr">Übungen verwalten</button><div class="tiny mt2">Umbenennen oder Dubletten zusammenführen – gilt für Verlauf, Pläne, Fortschritt und PRs.</div></div>
+  <div class="card sub mt2"><button class="btn wide" data-x="exdb">Übungsdatenbank durchsuchen</button><div class="tiny mt2">Illustrationen und Anleitung auf Deutsch. Übungsdaten von <a href="https://repdb.co" target="_blank" rel="noopener" style="color:var(--accent2)">RepDB (repdb.co)</a>.</div></div>
   <div class="muted mt4 mb2">Export</div>
   <div class="card sub"><div class="grid2"><button class="btn" data-x="export">JSON-Backup</button><button class="btn" data-x="import">Backup laden</button></div><div class="grid2 mt2"><button class="btn" data-x="csvw">Training als CSV</button><button class="btn" data-x="csvm">Ernährung als CSV</button></div></div>
   <div class="muted mt4 mb2">App</div>
@@ -73,6 +75,7 @@ export function settingsSheet(){
           try{await restoreSnapshot(b.dataset.sha);toast('Wiederhergestellt');closeSheet();rerender()}catch(e){toast('Fehlgeschlagen: '+e.message)}}});
     }catch(e){toast('Historie nicht abrufbar')}},restore:()=>{if(confirm2('Lokale Daten durch das Cloud-Backup ersetzen?'))pullSync(true).then(()=>{settingsSheet();rerender()})},
     exmgr:()=>exMgrSheet(),
+    exdb:()=>dbSearchSheet(),
     export:()=>dl('performance-backup-'+today()+'.json',JSON.stringify(S),'application/json'),
     import:()=>{const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=()=>{const r=new FileReader();r.onload=async()=>{try{const d=JSON.parse(r.result);await safetyBackup();replaceState(d);save();toast('Backup geladen');closeSheet();rerender()}catch(e){toast('Ungültige Datei')}};r.readAsText(i.files[0])};i.click()},
     csvw:()=>{const rows=[['Datum','Plan','Übung','Satz','Aufwärmen','kg (Eintrag)','Stange (kg)','Reps','e1RM (inkl. Stange)']];S.workouts.forEach(w=>w.exercises.forEach(e=>{const bar=S.barbell[e.name]||0;e.sets.forEach((st,i)=>rows.push([w.date.slice(0,10),w.name,e.name,i+1,st.wu?'ja':'',st.w,bar||'',st.r,st.wu?'':Math.round(e1rm(st.w+bar,st.r))]))}));dl('training-'+today()+'.csv',csv(rows),'text/csv')},
