@@ -464,6 +464,35 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
     check('Übung wird ins laufende Training übernommen',store().active.exercises.length===before+1,'vorher='+before+' nachher='+store().active.exercises.length);
     click('[data-a=cancel]');
   }
+  // v45: Main-Übungen global, Nebenübungen pro Plan getrennt (gleicher Name in Push Day 1 vs. Push Day 2)
+  {
+    const st=await import(path.join(root,'js/state.js'));
+    const p1=st.uid(),p2=st.uid();
+    st.S.plans.push({id:p1,name:'v45 Push A',exercises:[{name:'v45 Main A',main:true,weight:60,step:10,state:{weight:60,stage:0}},{name:'v45 Chest Fly',type:'Freihand',sets:3,reps:10}]});
+    st.S.plans.push({id:p2,name:'v45 Push B',exercises:[{name:'v45 Main B',main:true,weight:40,step:10,state:{weight:40,stage:0}},{name:'v45 Chest Fly',type:'Freihand',sets:3,reps:10}]});
+    // Push A: Chest Fly frisch und stark (40 kg); Push B: gleicher Name, aber müde/schwächer (20 kg)
+    st.S.workouts.push({id:st.uid(),planId:p1,date:new Date(Date.now()-2*864e5).toISOString(),exercises:[
+      {name:'v45 Main A',main:true,sets:[{w:60,r:5,done:true}]},{name:'v45 Chest Fly',sets:[{w:40,r:10,done:true}]}]});
+    st.S.workouts.push({id:st.uid(),planId:p2,date:new Date(Date.now()-1*864e5).toISOString(),exercises:[
+      {name:'v45 Main B',main:true,sets:[{w:40,r:5,done:true}]},{name:'v45 Chest Fly',sets:[{w:20,r:10,done:true}]}]});
+    // zweite Session je Kontext mit mehr Gewicht, damit ein echter PR-Wand-Eintrag entsteht
+    st.S.workouts.push({id:st.uid(),planId:p1,date:new Date(Date.now()-0.5*864e5).toISOString(),exercises:[
+      {name:'v45 Main A',main:true,sets:[{w:60,r:5,done:true}]},{name:'v45 Chest Fly',sets:[{w:45,r:10,done:true}]}]});
+    st.S.workouts.push({id:st.uid(),planId:p2,date:new Date(Date.now()-0.25*864e5).toISOString(),exercises:[
+      {name:'v45 Main B',main:true,sets:[{w:40,r:5,done:true}]},{name:'v45 Chest Fly',sets:[{w:22,r:10,done:true}]}]});
+    st.rebuildBestsFull();st.save();
+    const keyA=st.trackKey(p1,'v45 Chest Fly',false),keyB=st.trackKey(p2,'v45 Chest Fly',false);
+    check('Nebenübung: getrennte Schlüssel je Plan',keyA!==keyB);
+    check('Push A behält seinen eigenen Bestwert (45 kg)',st.allTimeBest(keyA).bw===45);
+    check('Push B behält seinen eigenen, niedrigeren Bestwert (22 kg) statt vermischt zu werden',st.allTimeBest(keyB).bw===22);
+    check('Main-Übung bleibt global über den bloßen Namen erreichbar',st.allTimeBest('v45 Main A').bw===60&&st.allTimeBest('v45 Main B').bw===40);
+    check('exHistory(Push A) enthält nur Push-A-Sätze',st.exHistory(keyA).every(x=>x.w<=45)&&st.exHistory(keyA).length===2);
+    check('exHistory(Push B) enthält nur Push-B-Sätze',st.exHistory(keyB).every(x=>x.w<=22)&&st.exHistory(keyB).length===2);
+    const wall=st.prWall();
+    check('PR-Wand zeigt beide Kontexte getrennt mit Plan-Namen',wall.some(e=>e.exercise==='v45 Chest Fly (v45 Push A)')&&wall.some(e=>e.exercise==='v45 Chest Fly (v45 Push B)'),JSON.stringify(wall.filter(e=>e.exercise.includes('v45'))));
+    check('allExercises listet beide Kontexte getrennt',st.allExercises().includes(keyA)&&st.allExercises().includes(keyB));
+    // Aufräumen, damit nachfolgende (keine – dies ist der letzte Block) Tests unberührt bleiben
+  }
   check('Keine JS-Fehler',errs.length===0,errs.join(' | '));
   console.log(fails?`\n${fails} Test(s) fehlgeschlagen`:'\nAlle Tests bestanden');process.exit(fails?1:0);
 })().catch(e=>{console.log('FAIL',e.stack);process.exit(1)});

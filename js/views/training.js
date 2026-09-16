@@ -1,4 +1,4 @@
-import {S,save,STAGES,stageLabel,esc,fmtD,fmtDL,de,vol,totalKg,planWorkouts,lastSets,compare,prsFor,allTimeBest,barOf,e1rm,pctS,pctC,startWorkout,finishWorkout,saveAsTemplate,today,touchWorkouts,rebuildBestsFull} from '../state.js';
+import {S,save,STAGES,stageLabel,esc,fmtD,fmtDL,de,vol,totalKg,planWorkouts,lastSets,compare,prsFor,allTimeBest,trackKey,barOf,e1rm,pctS,pctC,startWorkout,finishWorkout,saveAsTemplate,today,touchWorkouts,rebuildBestsFull} from '../state.js';
 import {sheet,closeSheet,toast,prompt2,confirm2,rerender,render,svgCheck} from '../ui.js';
 import {moveItem} from './plans.js';
 import {burst} from '../confetti.js';
@@ -109,7 +109,7 @@ export default{
     if(a==='done'){const s=A.exercises[d.i].sets[d.s];
       if(!s.done){const prev=lastSets(A.exercises[d.i].name);if(!s.w&&prev?.[d.s])s.w=prev[d.s].w;if(!s.r&&prev?.[d.s])s.r=prev[d.s].r;if(!s.w||!s.r){toast('kg und Reps eintragen');return}
         s.done=true;startTimer(S.settings.rest);if(navigator.vibrate)navigator.vibrate(30);
-        if(!s.wu){const nm=A.exercises[d.i].name,bar=barOf(nm),tw=s.w+bar,b=allTimeBest(nm);if(b.bw&&(tw>b.bw||e1rm(tw,s.r)>b.brm+0.5)){toast('PR! '+(bar?tw+' kg (inkl. Stange) × '+s.r:s.w+' kg × '+s.r));burst()}}}
+        if(!s.wu){const ae=A.exercises[d.i],nm=ae.name,bar=barOf(nm),tw=s.w+bar,key=trackKey(A.planId,nm,ae.main),b=allTimeBest(key);if(b.bw&&(tw>b.bw||e1rm(tw,s.r)>b.brm+0.5)){toast('PR! '+(bar?tw+' kg (inkl. Stange) × '+s.r:s.w+' kg × '+s.r));burst()}}}
       else s.done=false;save();rerender()}
     if(a==='menu')exMenu(+d.i);
     if(a==='wu'){const s=A.exercises[d.i].sets[d.s];s.wu=!s.wu;save();rerender()}

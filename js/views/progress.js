@@ -1,4 +1,4 @@
-import {S,esc,fmtD,fmtDL,de,exHistory,allExercises,recentExercises,work,weeklyMuscleVolume,prWall,nextRoundGoal,allTimeBest,macroAdherence,strengthTrend,monthlyPhotoPairs} from '../state.js';
+import {S,esc,fmtD,fmtDL,de,exHistory,allExercises,recentExercises,work,weeklyMuscleVolume,prWall,nextRoundGoal,allTimeBest,trackKey,keyParts,keyLabel,macroAdherence,strengthTrend,monthlyPhotoPairs} from '../state.js';
 import {sheet,closeSheet,rerender,el} from '../ui.js';
 import {lineChart} from '../charts.js';
 import {bodySVG,GROUPS} from '../muscles.js';
@@ -8,7 +8,7 @@ import * as photos from '../photos.js';
 let ex=null,range='3m',bodyView='front',wallN=40;
 let bodyOpen=false,macroMetric='p',macroRange=7,strengthRange=30;
 const filt=h=>{if(range==='all')return h;const cut=new Date(Date.now()-(range==='3m'?90:365)*864e5).toISOString();const f=h.filter(x=>x.d>=cut);return f.length>1?f:h.slice(-2)};
-function heaviest(name){let m={w:0,r:0};S.workouts.forEach(x=>{const h=x.exercises.find(y=>y.name===name);if(h)work(h).forEach(t=>{if(t.w>m.w)m=t})});return m}
+function heaviest(key){let m={w:0,r:0};S.workouts.forEach(w=>{const h=w.exercises.find(y=>trackKey(w.planId,y.name,y.main)===key);if(h)work(h).forEach(t=>{if(t.w>m.w)m=t})});return m}
 
 function heatmapCard(){
   const vols=weeklyMuscleVolume(),has=Object.keys(vols).length;
@@ -63,7 +63,7 @@ function html(){
   const all=allExercises();if(!ex||!all.includes(ex))ex=all[0]||null;
   const top=`<h1>Fortschritt</h1>${heatmapCard()}${macroCard()}${strengthCard()}${photoCompareCard()}<h2>Übung im Detail</h2>`;
   if(!ex)return `${top}<div class="empty">Sobald du Trainings gespeichert hast, siehst du hier deine Entwicklung pro Übung.</div>`;
-  const sel=`<select id="pexSel" class="mb2">${all.map(n=>`<option ${n===ex?'selected':''}>${esc(n)}</option>`).join('')}</select><div class="mb2">${recentExercises(4).map(n=>`<button class="chip ${n===ex?'on':''}" data-a="pex" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>`;
+  const sel=`<select id="pexSel" class="mb2">${all.map(k=>`<option value="${esc(k)}" ${k===ex?'selected':''}>${esc(keyLabel(k))}</option>`).join('')}</select><div class="mb2">${recentExercises(4).map(k=>`<button class="chip ${k===ex?'on':''}" data-a="pex" data-n="${esc(k)}">${esc(keyLabel(k))}</button>`).join('')}</div>`;
   const h=filt(exHistory(ex)),last=h[h.length-1];
   const wall=`<button class="btn wide mt2" data-a="wall">PR-Wand</button>`;
   if(!last)return `${top}${sel}<div class="empty">Keine Sätze mit Gewicht für diese Übung.</div>${wall}`;
@@ -81,7 +81,7 @@ function html(){
 }
 
 function standardCard(){
-  const lift=findLift(ex);if(!lift)return'';
+  const lift=findLift(keyParts(ex).name);if(!lift)return'';
   const last=[...S.weights].sort((a,b)=>a.d<b.d?-1:1).slice(-1)[0];if(!last)return'';
   const b=allTimeBest(ex);if(!b.brm)return'';
   const c=classifyStandard(lift,last.w,b.brm);
