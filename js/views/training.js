@@ -1,4 +1,4 @@
-import {S,save,STAGES,stageLabel,esc,fmtD,fmtDL,de,vol,totalKg,planWorkouts,lastSets,compare,prsFor,allTimeBest,trackKey,barOf,e1rm,pctS,pctC,startWorkout,finishWorkout,saveAsTemplate,today,touchWorkouts,rebuildBestsFull} from '../state.js';
+import {S,save,STAGES,stageLabel,esc,fmtD,fmtDL,de,vol,totalKg,planWorkouts,lastSets,compare,prsFor,allTimeBest,trackKey,barOf,e1rm,pctS,pctC,startWorkout,finishWorkout,saveAsTemplate,today,localDate,touchWorkouts,rebuildBestsFull} from '../state.js';
 import {sheet,closeSheet,toast,prompt2,confirm2,rerender,render,svgCheck} from '../ui.js';
 import {moveItem} from './plans.js';
 import {burst} from '../confetti.js';
@@ -13,7 +13,7 @@ const ago=d=>{if(!d)return'noch nie';const n=days(d);return n===0?'heute':n===1?
 
 function weekStreak(){const set=new Set(S.workouts.map(w=>w.date.slice(0,10)));const end=new Date();end.setHours(12,0,0,0);let n=0;
   for(let k=0;k<200;k++){const m=new Date(end);m.setDate(end.getDate()-((end.getDay()+6)%7)-7*k);let hit=false;
-    for(let i=0;i<7;i++){const x=new Date(m);x.setDate(m.getDate()+i);if(set.has(x.toISOString().slice(0,10)))hit=true}
+    for(let i=0;i<7;i++){const x=new Date(m);x.setDate(m.getDate()+i);if(set.has(localDate(x)))hit=true}
     if(hit)n++;else if(k>0)break}
   return n}
 function overview(){

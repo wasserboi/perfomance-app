@@ -1,4 +1,4 @@
-import {S,vol,totalKg,kcalOf,prWall,de,trend} from './state.js';
+import {S,vol,totalKg,kcalOf,prWall,de,trend,localDate} from './state.js';
 import {toast} from './ui.js';
 
 function weekStats(){
@@ -6,7 +6,7 @@ function weekStats(){
   const wk=S.workouts.filter(w=>new Date(w.date)>=mon);
   const tonnage=wk.reduce((a,w)=>a+vol(w),0);
   const prs=prWall().filter(e=>new Date(e.date)>=mon).length;
-  const days=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-i);return d.toISOString().slice(0,10)}).filter(d=>(S.macros[d]||[]).length);
+  const days=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-i);return localDate(d)}).filter(d=>(S.macros[d]||[]).length);
   const avgKcal=days.length?Math.round(days.reduce((a,d)=>a+S.macros[d].reduce((b,i)=>b+kcalOf(i),0),0)/days.length):null;
   const ws=[...S.weights].sort((a,b)=>a.d<b.d?-1:1);const tr=trend(ws.slice(-30));const last=tr[tr.length-1],prev=tr[tr.length-8];
   const dw=last&&prev?last.y-prev.y:null;

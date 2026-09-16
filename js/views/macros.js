@@ -1,17 +1,17 @@
-import {S,save,today,fmtDL,esc,r1,kcalOf,dayIsTrain,recentFoods,dayMinerals} from '../state.js';
+import {S,save,today,localDate,fmtDL,esc,r1,kcalOf,dayIsTrain,recentFoods,dayMinerals} from '../state.js';
 import {sheet,closeSheet,toast,rerender,el} from '../ui.js';
 import {searchSheet,scanSheet,foodForm,mealsSheet,amountSheet,foodRow} from '../food.js';
 
 // Tag wird als Versatz zu "heute" gehalten, nicht als festes Datum – so korrigiert sich
 // die Anzeige von selbst, wenn die App über Mitternacht hinweg geöffnet bleibt.
 let dayOffset=0;
-function curDay(){const d=new Date();d.setDate(d.getDate()+dayOffset);return d.toISOString().slice(0,10)}
+function curDay(){const d=new Date();d.setDate(d.getDate()+dayOffset);return localDate(d)}
 const modes={hold:['Halten',0],gain:['Aufbau',0.25],cut:['Abnehmen',-0.4]};
 
 function weekly(day,g,gk){
-  const ds=[...Array(7)].map((_,i)=>{const d=new Date(day+'T12:00');d.setDate(d.getDate()-i);return d.toISOString().slice(0,10)}).filter(d=>(S.macros[d]||[]).length);if(ds.length<2)return'';
+  const ds=[...Array(7)].map((_,i)=>{const d=new Date(day+'T12:00');d.setDate(d.getDate()-i);return localDate(d)}).filter(d=>(S.macros[d]||[]).length);if(ds.length<2)return'';
   const sum=ds.map(d=>S.macros[d].reduce((a,i)=>({p:a.p+i.p,c:a.c+i.c,f:a.f+i.f,k:a.k+kcalOf(i)}),{p:0,c:0,f:0,k:0}));const avg=k=>Math.round(sum.reduce((a,x)=>a+x[k],0)/ds.length);
-  const ws=[...S.weights].sort((a,b)=>a.d<b.d?-1:1),ref=new Date(day+'T12:00');ref.setDate(ref.getDate()-7);const before=ws.filter(x=>x.d<=ref.toISOString().slice(0,10)).slice(-1)[0],now=ws.filter(x=>x.d<=day).slice(-1)[0];const dw=before&&now&&before.d!==now.d?now.w-before.w:null;
+  const ws=[...S.weights].sort((a,b)=>a.d<b.d?-1:1),ref=new Date(day+'T12:00');ref.setDate(ref.getDate()-7);const before=ws.filter(x=>x.d<=localDate(ref)).slice(-1)[0],now=ws.filter(x=>x.d<=day).slice(-1)[0];const dw=before&&now&&before.d!==now.d?now.w-before.w:null;
   const mode=modes[S.goalMode||'hold'];let sug='';
   if(dw!==null&&ds.length>=5){const adj=Math.round((mode[1]-dw)*7700/7/50)*50,cl=Math.max(-300,Math.min(300,adj));sug=Math.abs(cl)>=100?`<div class="row between mt2"><span class="tiny">Autopilot (${mode[0]}): ${cl>0?'+':''}${cl} kcal/Tag → ${gk+cl} kcal</span><button class="btn sm" data-a="applykcal" data-v="${cl}">Übernehmen</button></div>`:`<div class="tiny mt2">Autopilot (${mode[0]}): Kalorien passen.</div>`}
   return `<div class="card"><div class="row between"><span class="muted">Ø letzte ${ds.length} Tage</span><span class="tiny num">${avg('k')} kcal · P ${avg('p')} · C ${avg('c')} · F ${avg('f')}</span></div>${dw!==null?`<div class="tiny mt2">Gewicht in 7 Tagen: <span class="num ${Math.abs(dw)<0.3?'':dw>0?'warn':'good'}">${(dw>0?'+':'')+dw.toFixed(1)} kg</span> · Ziel: ${mode[0]} <button class="btn ghost xs" data-a="goalmode">ändern</button></div>`:''}${sug}</div>`;

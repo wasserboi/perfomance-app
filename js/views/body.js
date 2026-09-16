@@ -1,4 +1,4 @@
-import {S,save,today,fmtD,MEAS,MEASURE_METRICS,measureTrend,trend,esc} from '../state.js';
+import {S,save,today,localDate,fmtD,MEAS,MEASURE_METRICS,measureTrend,trend,esc} from '../state.js';
 import {toast,rerender,el} from '../ui.js';
 import {lineChart} from '../charts.js';
 import {startTimer} from '../timer.js';
@@ -6,9 +6,9 @@ import * as photos from '../photos.js';
 
 let range='3m',measureMetric='waist';
 const RANGES=[['3m','3M'],['1y','1J'],['all','Alles']];
-function inRange(ws){if(range==='all')return ws;const cut=new Date(Date.now()-(range==='3m'?90:365)*864e5).toISOString().slice(0,10);const f=ws.filter(x=>x.d>=cut);return f.length>1?f:ws.slice(-2)}
+function inRange(ws){if(range==='all')return ws;const cut=localDate(new Date(Date.now()-(range==='3m'?90:365)*864e5));const f=ws.filter(x=>x.d>=cut);return f.length>1?f:ws.slice(-2)}
 function html(){
-  const ws=[...S.weights].sort((a,b)=>a.d<b.d?-1:1),last=ws[ws.length-1],wk=ws.filter(x=>x.d>=new Date(Date.now()-7*864e5).toISOString().slice(0,10));
+  const ws=[...S.weights].sort((a,b)=>a.d<b.d?-1:1),last=ws[ws.length-1],wk=ws.filter(x=>x.d>=localDate(new Date(Date.now()-7*864e5)));
   const avg=wk.length?wk.reduce((a,x)=>a+x.w,0)/wk.length:null;
   const m=[...S.measures].sort((a,b)=>a.d<b.d?-1:1),ml=m[m.length-1],mt=m.find(x=>x.d===today())||{};
   const f=(k,lab)=>`<div><label class="f">${lab}</label><input type="number" inputmode="decimal" step="0.5" id="ms_${k}" value="${mt[k]??''}" placeholder="${ml?.[k]??'cm'}"></div>`;

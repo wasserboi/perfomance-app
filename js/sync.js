@@ -1,4 +1,4 @@
-import {S,replaceState,save,on,flush,validate,today,rebuildBestsFull} from './state.js';
+import {S,replaceState,save,on,flush,validate,today,localDate,rebuildBestsFull} from './state.js';
 import {el,toast} from './ui.js';
 import * as photos from './photos.js';
 
@@ -46,7 +46,7 @@ export async function pushSync(force){
     }
     // Monats-Snapshot: einmal pro Monat eine unveränderliche Kopie
     // Laufender Monat wird höchstens einmal täglich aktualisiert; vergangene Monate bleiben unverändert.
-    const day=new Date().toISOString().slice(0,10),mon=day.slice(0,7),snapPath='snapshots/'+mon+'.json';
+    const day=localDate(),mon=day.slice(0,7),snapPath='snapshots/'+mon+'.json';
     if(changed&&(!t||!t.files[snapPath]||SY.snapDay!==day)){
       pendingSnapDay=day;
       const b=await gh('/git/blobs',{method:'POST',body:JSON.stringify({content:b64e(JSON.stringify(S)),encoding:'base64'})});

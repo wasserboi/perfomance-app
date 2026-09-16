@@ -1,7 +1,7 @@
 import {kvGet,kvSet,mirror,readMirror} from './store.js';
 import {classify} from './muscles.js';
 // ===== Konstanten =====
-export const APP_VERSION='46';
+export const APP_VERSION='47';
 export const SCHEMA=4;
 export const KEY='perf.v1';
 export const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];
@@ -74,7 +74,10 @@ export function emit(ev,arg){(listeners[ev]||[]).forEach(f=>f(arg))}
 
 // ===== Helpers =====
 export const uid=()=>Math.random().toString(36).slice(2,9);
-export const today=()=>new Date().toISOString().slice(0,10);
+// Lokales Kalenderdatum (YYYY-MM-DD), NICHT toISOString() (das ist UTC und liegt kurz nach
+// Mitternacht in Deutschland noch auf dem Vortag). Überall verwenden, wo ein Tag gemeint ist.
+export function localDate(d=new Date()){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+export const today=()=>localDate();
 export const fmtD=d=>new Date(d+(d.length===10?'T12:00':'')).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
 export const fmtDL=d=>new Date(d).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'});
 export const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -168,7 +171,7 @@ export function weeklyMuscleVolume(){
 // Makro-Treue über Zeit: pro Tag mit Einträgen der Anteil vom jeweiligen Tagesziel (Trainings-/Ruhetag),
 // z. B. für 'p' (Protein) oder 'k' (Kalorien). Ergibt Punkte um 100 % herum.
 export function macroAdherence(metric,days){
-  const cut=new Date(Date.now()-days*864e5).toISOString().slice(0,10);
+  const cut=localDate(new Date(Date.now()-days*864e5));
   const dates=Object.keys(S.macros).filter(d=>d>=cut&&(S.macros[d]||[]).length).sort();
   return dates.map(d=>{
     const items=S.macros[d],g=dayIsTrain(d)?S.goals:(S.goalsRest||S.goals);
@@ -307,7 +310,7 @@ export function cycleCheck(d,id){const cur=checkState(d,id),next=cur==='open'?tr
 export function setCheck(d,id,v){const c=S.checks[d]=S.checks[d]||{};if(v)c[id]=v===true?true:v;else delete c[id];if(!Object.keys(c).length)delete S.checks[d];save()}
 // Historie einer Aufgabe: letzte n Tage, nur an fälligen Tagen
 export function habit(id,n=14,dueFn){const out=[];const t=new Date();t.setHours(12,0,0,0);
-  for(let i=n-1;i>=0;i--){const x=new Date(t);x.setDate(t.getDate()-i);const d=x.toISOString().slice(0,10);
+  for(let i=n-1;i>=0;i--){const x=new Date(t);x.setDate(t.getDate()-i);const d=localDate(x);
     out.push({d,due:dueFn?dueFn(d):true,st:checkState(d,id)})}
   const due=out.filter(o=>o.due),done=due.filter(o=>o.st==='done').length;
   let streak=0;for(let i=due.length-1;i>=0;i--){if(due[i].st==='done')streak++;else if(due[i].st==='open'&&i===due.length-1)continue;else break}

@@ -1,4 +1,5 @@
 // Kernflows der App in jsdom. Aufruf: npm test
+process.env.TZ='Europe/Berlin'; // App ist für deutsche Nutzer; UTC (Sandbox-Standard) hätte genau die Mitternachts-/UTC-Bugs verdeckt, die real aufgetreten sind.
 const {JSDOM}=require('jsdom');const fs=require('fs');const path=require('path');const crypto=require('crypto');
 const {indexedDB}=require('fake-indexeddb');
 const root=path.join(__dirname,'..');
@@ -492,6 +493,19 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
     check('PR-Wand zeigt beide Kontexte getrennt mit Plan-Namen',wall.some(e=>e.exercise==='v45 Chest Fly (v45 Push A)')&&wall.some(e=>e.exercise==='v45 Chest Fly (v45 Push B)'),JSON.stringify(wall.filter(e=>e.exercise.includes('v45'))));
     check('allExercises listet beide Kontexte getrennt',st.allExercises().includes(keyA)&&st.allExercises().includes(keyB));
     // Aufräumen, damit nachfolgende (keine – dies ist der letzte Block) Tests unberührt bleiben
+  }
+  // v47: UTC-vs-lokal-Bug – kurz nach Mitternacht in Deutschland (UTC+2 im Sommer) darf "heute"
+  // nicht mehr der Vortag sein (toISOString() ist UTC, das war der Fehler)
+  {
+    const st=await import(path.join(root,'js/state.js'));
+    // 2026-09-16T22:14:00Z = 17.09.2026, 00:14 Uhr Berliner Zeit (CEST, UTC+2)
+    const midnightUTC=new Date('2026-09-16T22:14:00Z');
+    check('localDate() liefert den deutschen Kalendertag (17.), nicht den UTC-Tag (16.)',st.localDate(midnightUTC)==='2026-09-17',st.localDate(midnightUTC));
+    check('Naive toISOString() wäre falsch gewesen (zeigt den Bug)',midnightUTC.toISOString().slice(0,10)==='2026-09-16');
+    const realNow=Date.now,RD=class extends Date{constructor(...a){if(a.length)super(...a);else super(midnightUTC.getTime())}static now(){return midnightUTC.getTime()}};
+    const realDate=global.Date;global.Date=w.Date=RD;
+    check('today() ist um 00:14 Uhr lokal bereits der neue Tag',st.today()==='2026-09-17');
+    global.Date=w.Date=realDate;
   }
   check('Keine JS-Fehler',errs.length===0,errs.join(' | '));
   console.log(fails?`\n${fails} Test(s) fehlgeschlagen`:'\nAlle Tests bestanden');process.exit(fails?1:0);
