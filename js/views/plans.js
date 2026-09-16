@@ -42,7 +42,7 @@ function planSheet(id){
 }
 export function settingsSheet(){
   sheet(`<h3>Einstellungen</h3>
-  <div class="card sub"><div class="grid2"><div><label class="f">Pausenzeit (Sek.)</label><input type="number" inputmode="numeric" id="restIn" value="${S.settings.rest}"></div><div><label class="f">Overload-Schritt (kg)</label><input type="number" inputmode="decimal" step="0.5" id="ovIn" value="${S.settings.overload||2.5}"></div></div><div class="tiny mt2">Wenn du letztes Mal in allen Arbeitssätzen die Ziel-Reps geschafft hast, schlägt die App dieses Plus vor.</div></div>
+  <div class="card sub"><div><label class="f">Pausenzeit (Sek.)</label><input type="number" inputmode="numeric" id="restIn" value="${S.settings.rest}"></div></div>
   <div class="muted mt4 mb2">Cloud-Backup (GitHub)</div>
   <div class="card sub"><div class="row between mb2"><span id="syncStatus" class="muted">${syncText()}</span>${SY.token?'<button class="btn sm" data-x="syncnow">Jetzt sichern</button>':''}</div>
     <div class="field"><label class="f">Privates Repo (Nutzer/Name)</label><input id="syRepo" value="${esc(SY.repo)}" autocapitalize="off" autocorrect="off"></div>
@@ -60,7 +60,7 @@ export function settingsSheet(){
   <div class="muted mt4 mb2">App</div>
   <div class="card sub"><div class="row between"><span class="muted">Version ${APP_VERSION}</span><button class="btn sm" data-x="upd">Nach Update suchen</button></div><button class="btn ghost sm mt2" data-x="changelog">Was ist neu</button></div>
   <button class="btn wide mt4" data-x="close">Schließen</button>`,{
-    _input:ev=>{const t=ev.target;if(t.id==='restIn'){S.settings.rest=+t.value||90;save()}if(t.id==='ovIn'){S.settings.overload=+t.value||2.5;save()}},
+    _input:ev=>{const t=ev.target;if(t.id==='restIn'){S.settings.rest=+t.value||90;save()}},
     close:()=>{closeSheet();rerender()},
     connect:()=>{toast('Verbinde…');connect(el('syRepo').value,el('syTok').value).then(()=>{settingsSheet();toast(SY.state==='ok'?'Cloud-Backup aktiv':SY.token?'Verbindung fehlgeschlagen':'Getrennt')})},
     syncnow:()=>pushSync(),forcepush:()=>{pushSync(true).then(()=>{settingsSheet();toast('Hochgeladen')})},

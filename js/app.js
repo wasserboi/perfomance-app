@@ -25,6 +25,7 @@ el('upd').onclick=async()=>{const u=el('upd');u.textContent='Lade Update…';
   try{await Promise.all(['index.html','js/app.js','js/state.js','css/app.css'].map(f=>fetch(f,{cache:'reload'})))}catch(e){}
   location.reload()};
 export const CHANGES=[
+ {v:'46',t:['Automatisches +2,5 kg bei Nebenübungen entfernt – Sätze werden 1:1 wie beim letzten Mal vorausgefüllt, ohne Vorschlag-Badge. Die Overload-Einstellung ist damit auch weg']},
  {v:'45',t:['Bestwerte/PRs/Prozentangaben korrigiert: Main-Übungen zählen weiterhin durchgehend über die ganze Historie. Nebenübungen werden jetzt pro Trainingstag (Plan) getrennt geführt, damit die gleiche Übung an unterschiedlichen Tagen nicht mehr vermischt wird']},
  {v:'44',t:['Übungsdatenbank: nach Körperteil durchsuchen mit Bildvorschau in der Liste; im Training direkt eine Übung aus der Datenbank hinzufügen']},
  {v:'43',t:['Übungsdatenbank eingebaut (RepDB, deutsch): Illustrationen und Schritt-für-Schritt-Anleitung, über "Anleitung ansehen" im Training-Menü (ordnet automatisch zu) oder durchsuchbar im Zahnrad']},

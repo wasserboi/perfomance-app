@@ -88,7 +88,7 @@ let fails=0;const check=(name,cond,info='')=>{console.log((cond?'✓ ':'✗ ')+n
     if(flysKg){const n=d.querySelectorAll('input[data-f=w]').length-1;inp(d.querySelectorAll('input[data-f=w]')[n],flysKg);inp(d.querySelectorAll('input[data-f=r]')[n],10);d.querySelectorAll('[data-a=done]')[n].dispatchEvent(new w.MouseEvent('click',{bubbles:true}))}
     click('[data-a=finish]');const t=d.querySelector('#sheet .in').textContent;click('[data-x=close]');return t};
   let t=session(10,20);check('Stufe 1 geschafft → 7×5',/7×5 mit 100/.test(t));
-  click('[data-tab=log]');click('[data-a=start][data-id]');check('Overload-Vorschlag Flys +2.5',!!d.querySelector('.sug')&&d.querySelectorAll('input[data-f=w]')[d.querySelectorAll('input[data-f=w]').length-1].value==='22.5');
+  click('[data-tab=log]');click('[data-a=start][data-id]');check('Kein automatischer Gewichts-Vorschlag mehr bei Nebenübungen',!d.querySelector('.sug')&&d.querySelectorAll('input[data-f=w]')[d.querySelectorAll('input[data-f=w]').length-1].value==='20');
   click('[data-a=adj][data-f=w][data-d="2.5"]');check('±-Taste kg',d.querySelector('input[data-f=w]').value==='102.5');
   click('[data-a=cancel]');
   t=session(5);check('PR-Badge in Auswertung (100×5 > 100×3)',/PR 1RM/.test(t));

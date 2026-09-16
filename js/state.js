@@ -1,7 +1,7 @@
 import {kvGet,kvSet,mirror,readMirror} from './store.js';
 import {classify} from './muscles.js';
 // ===== Konstanten =====
-export const APP_VERSION='45';
+export const APP_VERSION='46';
 export const SCHEMA=4;
 export const KEY='perf.v1';
 export const STAGES=[{sets:10,reps:3},{sets:7,reps:5},{sets:5,reps:7}];
@@ -10,7 +10,7 @@ export const MEAS=[['waist','Bauch'],['chest','Brust'],['armL','Arm links'],['ar
 export const stageLabel=st=>STAGES[st].sets+'×'+STAGES[st].reps;
 
 const def={plans:[],workouts:[],weights:[],macros:{},foods:[],meals:[],measures:[],exNotes:{},dayType:{},
-  goals:{p:180,c:250,f:80},goalsRest:null,goalMode:'hold',water:{},photosDeleted:[],supps:[],checks:{},waterGoal:3000,bests:{},barbell:{},settings:{rest:90,overload:2.5},active:null};
+  goals:{p:180,c:250,f:80},goalsRest:null,goalMode:'hold',water:{},photosDeleted:[],supps:[],checks:{},waterGoal:3000,bests:{},barbell:{},settings:{rest:90},active:null};
 
 // ===== State =====
 export const clone=o=>JSON.parse(JSON.stringify(o));
@@ -245,11 +245,12 @@ export function renameExercise(from,to){if(!to||from===to)return;
 export function startWorkout(planId){
   const p=S.plans.find(x=>x.id===planId);let exercises=[];
   if(p){
-    const last=planWorkouts(p.id,p.name).slice(-1)[0],step=S.settings.overload||2.5;
+    const last=planWorkouts(p.id,p.name).slice(-1)[0];
     const mainEx=e=>{const st=e.state||{weight:e.weight,stage:0},cfg=STAGES[st.stage];return{name:e.name,type:e.type,main:true,stage:st.stage,targetReps:cfg.reps,sets:Array.from({length:cfg.sets},()=>({w:st.weight,r:cfg.reps,done:false}))}};
-    if(last)exercises=last.exercises.map(e=>{const pe=p.exercises.find(x=>x.name===e.name);if(pe?.main)return mainEx(pe);const target=pe?.reps||e.targetReps||0;const ws=e.sets.filter(x=>!x.wu);
-      const hit=target&&ws.length&&ws.every(x=>x.r>=target)&&ws.some(x=>x.w>0);
-      return{name:e.name,type:pe?.type||e.type,targetReps:target||undefined,sug:hit?step:0,sets:e.sets.map(x=>({w:hit&&!x.wu?Math.round((x.w+step)*2)/2:x.w,r:x.r,done:false,wu:!!x.wu}))}});
+    // Nebenübungen werden 1:1 wie beim letzten Mal vorausgefüllt – kein automatisches Draufschlagen.
+    // Wie viel mehr Gewicht sinnvoll ist, hängt von der Übung, dem Tag und der Person ab; das entscheidest du selbst.
+    if(last)exercises=last.exercises.map(e=>{const pe=p.exercises.find(x=>x.name===e.name);if(pe?.main)return mainEx(pe);const target=pe?.reps||e.targetReps||0;
+      return{name:e.name,type:pe?.type||e.type,targetReps:target||undefined,sets:e.sets.map(x=>({w:x.w,r:x.r,done:false,wu:!!x.wu}))}});
     p.exercises.forEach(e=>{if(!exercises.some(x=>x.name===e.name))exercises.push(e.main?mainEx(e):{name:e.name,type:e.type,targetReps:e.reps,sets:Array.from({length:e.sets||3},()=>({w:0,r:0,done:false}))})});
     const mi=exercises.findIndex(e=>e.main);if(mi>0){const [m]=exercises.splice(mi,1);exercises.unshift(m)}
   }

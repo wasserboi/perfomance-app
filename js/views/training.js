@@ -42,7 +42,7 @@ function active(){
   <div class="bar mb3"><i class="k" style="width:${allSets?doneSets/allSets*100:0}%"></i></div>
   ${a.exercises.map((ex,ei)=>{const prev=lastSets(ex.name);const open=ex.sets.some(s=>!s.done);
     return`<div class="card ex ${open?'':'ex-done'}" data-row="${ei}">
-    <div class="exhead"><div class="grow"><div class="name">${esc(ex.name)}</div><div class="tags mt1">${ex.main?'<span class="tag main">Main</span>':''}${ex.type?`<span class="tag">${ex.type}</span>`:''}${ex.sug?`<span class="sug">↑ +${String(ex.sug).replace('.',',')} kg</span>`:''}${S.exNotes[ex.name]?'<span class="tag note-tag">✎</span>':''}</div></div>
+    <div class="exhead"><div class="grow"><div class="name">${esc(ex.name)}</div><div class="tags mt1">${ex.main?'<span class="tag main">Main</span>':''}${ex.type?`<span class="tag">${ex.type}</span>`:''}${S.exNotes[ex.name]?'<span class="tag note-tag">✎</span>':''}</div></div>
       <button class="icon more" data-a="menu" data-i="${ei}" aria-label="Optionen">···</button></div>
     ${ex.main?`<div class="stagebar">${STAGES.map((c,i)=>`<span class="${i===ex.stage?'on':i<ex.stage?'ok':''}">${c.sets}×${c.reps}</span>`).join('')}</div>`:''}
     <div class="prev">${ex.main?(()=>{const bar=barOf(ex.name),w=ex.sets.find(s=>!s.wu)?.w;return `Ziel ${STAGES[ex.stage].sets} × ${STAGES[ex.stage].reps} mit ${w} kg`+(bar?` <span class="tiny">(+ ${bar} kg Stange = ${w+bar} kg gesamt)</span>`:'')})():(prev?'Letztes Mal '+prev.slice(0,4).map(s=>s.w+'×'+s.r).join(' · ')+(prev.length>4?' …':''):'Erstes Mal')+(ex.targetReps?' · Ziel '+ex.targetReps+' Reps':'')}</div>
